@@ -1,0 +1,39 @@
+{
+  "note": "Real payload from POST /rest/api/3/workflows for project WFAT on superportdev (2026-10-21), used as regression fixture",
+  "workflow": {
+    "id": "3e97e569-f381-4f83-adda-83f155b219fa",
+    "name": "Software Simplified Workflow for Project WFAT",
+    "scope": { "type": "GLOBAL" },
+    "version": { "id": "08ab1783-82fd-47bd-803f-d920c9eb984e", "versionNumber": 0 },
+    "statuses": [
+      { "statusReference": "10004", "properties": {} },
+      { "statusReference": "10005", "properties": {} },
+      { "statusReference": "3", "properties": {} },
+      { "statusReference": "10006", "properties": {} }
+    ],
+    "transitions": [
+      { "actions": [{ "id": "1218299747", "parameters": { "field": "resolution", "mode": "", "value": "" }, "ruleKey": "system:update-field" }], "description": "", "id": "11", "links": [], "name": "Backlog", "properties": { "jira.i18n.title": "gh.workflow.preset.backlog" }, "toStatusReference": "10004", "triggers": [], "type": "GLOBAL", "validators": [] },
+      { "actions": [{ "id": "1218049641", "parameters": { "field": "resolution", "mode": "", "value": "" }, "ruleKey": "system:update-field" }], "description": "", "id": "21", "links": [], "name": "Selected for Development", "properties": { "jira.i18n.title": "gh.workflow.preset.selected" }, "toStatusReference": "10005", "triggers": [], "type": "GLOBAL", "validators": [] },
+      { "actions": [{ "id": "1881425741", "parameters": { "field": "resolution", "mode": "", "value": "" }, "ruleKey": "system:update-field" }], "description": "", "id": "31", "links": [], "name": "In Progress", "properties": { "jira.i18n.title": "gh.workflow.preset.inprogress" }, "toStatusReference": "3", "triggers": [], "type": "GLOBAL", "validators": [] },
+      { "actions": [{ "id": "277531632", "parameters": { "field": "resolution", "mode": "replace", "value": "10000" }, "ruleKey": "system:update-field" }], "description": "", "id": "41", "links": [], "name": "Done", "properties": { "jira.i18n.title": "gh.workflow.preset.done" }, "toStatusReference": "10006", "triggers": [], "type": "GLOBAL", "validators": [] },
+      { "actions": [], "description": "", "id": "1", "links": [], "name": "Create", "properties": { "jira.i18n.title": "common.forms.create" }, "toStatusReference": "10004", "triggers": [], "type": "INITIAL", "validators": [{ "id": "8b40d03a-f09e-4f40-ac9d-2e2fae6f102f", "parameters": { "permissionKey": "CREATE_ISSUES" }, "ruleKey": "system:check-permission-validator" }] }
+    ]
+  },
+  "statuses": [
+    { "id": "10006", "name": "Done", "statusCategory": "DONE", "statusReference": "10006" },
+    { "id": "10005", "name": "Selected for development", "statusCategory": "IN_PROGRESS", "statusReference": "10005" },
+    { "id": "10004", "name": "Backlog", "statusCategory": "TODO", "statusReference": "10004" },
+    { "id": "3", "name": "In Progress", "statusCategory": "IN_PROGRESS", "statusReference": "3" }
+  ],
+  "ref": {
+    "groups": [
+      { "groupId": "933a2e7f-96cc-4bee-b16f-0b2b9d9e8a8e", "name": "wfa-test-procurement" },
+      { "groupId": "f5559baa-4c10-465e-8419-10e8ab8a21e2", "name": "wfa-test-legal" },
+      { "groupId": "21f68452-52a4-4d75-8978-b811d5cdb190", "name": "wfa-test-obsolete" }
+    ],
+    "roles": [{ "id": "10002", "name": "Administrators" }, { "id": "10008", "name": "Member" }],
+    "resolutions": [{ "id": "10000", "name": "Done" }, { "id": "10001", "name": "Won't Do" }],
+    "fields": [{ "id": "duedate", "name": "Due date" }, { "id": "priority", "name": "Priority" }, { "id": "assignee", "name": "Assignee" }],
+    "screens": []
+  }
+}

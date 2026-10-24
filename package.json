@@ -1,0 +1,22 @@
+{
+  "name": "superport-workflow-analyzer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Superport Workflow Analyzer – Jira Cloud Forge app that documents and analyses workflows (replaces the XML export based Workflow Parser).",
+  "main": "src/index.js",
+  "license": "UNLICENSED",
+  "scripts": {
+    "test": "node --test --experimental-test-module-mocks tests/*.test.js",
+    "build:ui": "npm --prefix static/app run build",
+    "dev:ui": "npm --prefix static/app run dev",
+    "lint": "forge lint",
+    "deploy": "npm run build:ui && forge deploy --non-interactive -e development",
+    "check:i18n": "node scripts/check-i18n.js"
+  },
+  "dependencies": {
+    "@forge/api": "^8.3.0",
+    "@forge/kvs": "^2.1.0",
+    "@forge/llm": "^1.0.8",
+    "@forge/resolver": "^2.0.1"
+  }
+}

@@ -1,0 +1,309 @@
+// Local mock of @forge/bridge used with `vite --mode mock`. Serves fixture data so the UI,
+// exports and language switching can be tested in a normal browser without Jira.
+import { makeProcurementBundle } from '../../../../tests/fixtures/procurement.js';
+
+const isSite = () => /^#admin/.test(window.location.hash);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const LS = 'superport.wfa.mock';
+const load = () => {
+  try { return JSON.parse(localStorage.getItem(LS)) || {}; } catch { return {}; }
+};
+const save = (s) => {
+  try { localStorage.setItem(LS, JSON.stringify(s)); } catch { /* ignore */ }
+};
+
+export const view = {
+  async getContext() {
+    return {
+      accountId: 'mock-user',
+      cloudId: 'mock-cloud',
+      siteUrl: 'https://superportdev.atlassian.net',
+      locale: 'de-DE',
+      moduleKey: isSite() ? 'workflow-analyzer-admin' : 'workflow-analyzer-project',
+      extension: isSite() ? { type: 'jira:adminPage' } : { type: 'jira:projectSettingsPage', project: { id: '10100', key: 'IDE', type: 'software' } },
+    };
+  },
+  theme: { async enable() { document.documentElement.setAttribute('data-color-mode', /dark/.test(location.hash) ? 'dark' : 'light'); } },
+};
+
+export const router = {
+  open(url) { window.open(url, '_blank'); },
+  navigate(url) { window.open(url, '_blank'); },
+};
+
+export const rovo = {
+  async isEnabled() { return !/norovo/.test(location.hash); },
+  async open(payload) { window.__lastRovo = payload; console.info('[mock] rovo.open', payload); },
+};
+
+const ok = (data) => ({ ok: true, data });
+
+async function mockPlan(s, ops, instructions, explanation, source, lang) {
+  const { dryRun } = await import('../../../../src/shared/autopilot.js');
+  const b = makeProcurementBundle();
+  const wf = b.workflows[0];
+  const dr = dryRun(b, wf.id, ops, { lang });
+  const slim = (f) => ({ id: f.id, code: f.code, severity: f.severity, wfName: f.wfName, tName: f.tName, params: f.params, ruleLabel: f.ruleLabel, vendor: f.vendor });
+  const plan = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+    workflowId: wf.id,
+    baseVersion: wf.version || null,
+    lang,
+    workflowName: wf.name,
+    title: String(instructions || `${ops.length} operation(s)`).slice(0, 140),
+    instructions,
+    explanation,
+    source,
+    ops,
+    results: dr.results.map((r) => ({ op: r.op, ok: r.ok, message: r.message })),
+    changes: dr.changes,
+    healthBefore: dr.healthBefore,
+    healthAfter: dr.healthAfter,
+    fixed: dr.fixed.map(slim),
+    introduced: dr.introduced.map(slim),
+    sharedProjects: /shared/.test(location.hash) ? [{ key: 'IDE' }, { key: 'KAN' }] : [{ key: 'IDE' }],
+    validation: { ok: true, errors: [], warnings: [] },
+    status: dr.results.some((r) => r.ok) ? 'planned' : 'invalid',
+    createdAt: new Date().toISOString(),
+    createdByName: 'Mock Admin',
+  };
+  s.plans = { ...(s.plans || {}), [plan.id]: plan };
+  save(s);
+  return plan;
+}
+
+export async function invoke(name, payload = {}) {
+  await wait(name === 'getProjectData' ? 500 : 120);
+  const s = load();
+  switch (name) {
+    case 'bootstrap':
+      return ok({
+        mode: isSite() ? 'site' : 'project',
+        project: isSite() ? null : { id: '10100', key: 'IDE' },
+        user: { accountId: 'mock-user', displayName: 'Mock Admin', locale: 'de_DE' },
+        prefs: s.prefs || {},
+        allowed: !/forbidden/.test(location.hash),
+        isJiraAdmin: !/role=project/.test(location.hash),
+        // #role=project simulates a project admin who is not a Jira admin (role-aware UI)
+        caps: /forbidden/.test(location.hash)
+          ? { role: 'none', jiraAdmin: false, projectAdmin: false, changeShared: false, changeProjectScoped: false, createTasks: false, bulk: false }
+          : /role=project/.test(location.hash)
+            ? { role: 'project-admin', jiraAdmin: false, projectAdmin: true, changeShared: false, changeProjectScoped: true, createTasks: true, bulk: false }
+            : { role: 'jira-admin', jiraAdmin: true, projectAdmin: true, changeShared: true, changeProjectScoped: true, createTasks: true, bulk: isSite() },
+      });
+    case 'setPrefs':
+      s.prefs = { ...(s.prefs || {}), ...payload };
+      save(s);
+      return ok(s.prefs);
+    case 'getProjectData':
+      if (/fail/.test(location.hash)) return { ok: false, error: 'FAILED', message: 'Mock failure' };
+      return ok({ bundle: makeProcurementBundle(), notes: s.notes || {} });
+    case 'getNotes':
+      return ok(s.notes || {});
+    case 'saveNote': {
+      s.notes = s.notes || {};
+      const n = (s.notes[payload.workflowId] ||= {});
+      if (!String(payload.text || '').trim()) delete n[payload.transitionId];
+      else n[payload.transitionId] = { text: payload.text, by: 'mock-user', byName: 'Mock Admin', at: new Date().toISOString() };
+      save(s);
+      return ok(n[payload.transitionId] || null);
+    }
+    case 'listSnapshots':
+      return ok(s.snapshots || []);
+    case 'saveSnapshot': {
+      const { normalize } = await import('../../../../src/shared/engine.js');
+      const { makeSnapshot } = await import('../../../../src/shared/snapshot.js');
+      const b = makeProcurementBundle();
+      // Simulate an older state: different transition name and one transition less
+      if ((s.snapshots || []).length === 0) {
+        b.workflows[0].transitions[2].name = 'Freigeben (alt)';
+        b.workflows[0].transitions.push({ id: '777', name: 'Alte Abkürzung', type: 'DIRECTED', toStatusReference: 'ref-10286', links: [{ fromStatusReference: 'ref-10288' }], conditions: { operation: 'ALL', conditions: [], conditionGroups: [] }, validators: [], actions: [] });
+      }
+      const snap = makeSnapshot(normalize(b), { label: payload.label, by: 'Mock Admin' });
+      const id = Date.now().toString(36);
+      s.snapshots = [{ id, takenAt: snap.takenAt, by: snap.by, label: snap.label, stats: snap.stats, chunks: 1 }, ...(s.snapshots || [])];
+      s.snapData = { ...(s.snapData || {}), [id]: snap };
+      save(s);
+      return ok(s.snapshots[0]);
+    }
+    case 'getSnapshot':
+      return ok((s.snapData || {})[payload.id] || null);
+    case 'deleteSnapshot':
+      s.snapshots = (s.snapshots || []).filter((x) => x.id !== payload.id);
+      save(s);
+      return ok(true);
+    case 'siteScanPage': {
+      const b = makeProcurementBundle();
+      const extra = JSON.parse(JSON.stringify(b.workflows[1]));
+      extra.id = 'b7a1d1c0-0000-4000-8000-000000000003';
+      extra.name = 'Software Simplified Workflow';
+      const all = [...b.workflows, extra];
+      const page = all.slice(payload.startAt || 0, (payload.startAt || 0) + 2);
+      return ok({ total: all.length, isLast: (payload.startAt || 0) + 2 >= all.length, nextStartAt: (payload.startAt || 0) + page.length, workflows: page, statuses: b.statuses });
+    }
+    case 'siteRefs':
+      return ok({ ref: makeProcurementBundle().ref, warnings: [] });
+    case 'siteProjects': {
+      const usage = {};
+      for (const id of payload.workflowIds) usage[id] = id.endsWith('3') ? [{ id: '10200', key: 'KAN', name: 'Kanban Demo' }, { id: '10300', key: 'OPS', name: 'IT Operations' }] : [{ id: '10100', key: 'IDE', name: 'IT-Bedarf' }];
+      return ok({ usage, warnings: [] });
+    }
+    case 'getStatusLoad': {
+      const byStatus = {};
+      const counts = { 10289: 4, 10288: 3, 10290: 2, 10640: 14, 10339: 2, 10341: 3, 10300: 1, 10286: 40, 10287: 25, 10301: 6, 10999: 0, 10291: 1, 10292: 2, 10302: 3, 10338: 2, 1: 5, 3: 4, 10001: 18 };
+      for (const id of payload.statusIds) byStatus[id] = { count: counts[id] ?? 0, stale: id === '10640' ? 9 : id === '10302' ? 2 : 0, ever: counts[id] ? counts[id] + 3 : id === '10999' ? 0 : 2 };
+      return ok({ byStatus, total: 46, all: 135, staleDays: payload.staleDays || 30, at: new Date().toISOString() });
+    }
+    case 'getIssueTypes':
+      return ok([{ id: '10010', name: 'Aufgabe' }, { id: '10011', name: 'Bug' }]);
+    case 'getRemediation':
+      return ok(s.rem || {});
+    case 'createRemediation': {
+      s.rem = s.rem || {};
+      const created = [];
+      const skipped = [];
+      let n = 100 + Object.keys(s.rem).length;
+      for (const it of payload.items) {
+        if (s.rem[it.fingerprint]) { skipped.push({ fingerprint: it.fingerprint, key: s.rem[it.fingerprint].key }); continue; }
+        const key = `${payload.projectKey || 'IDE'}-${++n}`;
+        s.rem[it.fingerprint] = { key, at: new Date().toISOString(), by: 'Mock Admin' };
+        created.push({ fingerprint: it.fingerprint, key });
+      }
+      save(s);
+      return ok({ created, skipped });
+    }
+    case 'getMonitoring':
+      return ok({ enabled: !!s.monitor, state: s.monitorState || null });
+    case 'setMonitoring':
+      s.monitor = !!payload.enabled;
+      s.monitorState = s.monitor ? { lastRun: new Date().toISOString(), baselineAt: new Date().toISOString(), healthScore: 67, high: 3 } : s.monitorState;
+      save(s);
+      return ok({ enabled: s.monitor, state: s.monitorState });
+    case 'touchVisit':
+      // #digest simulates a previous visit that knew only part of today's findings
+      if (/digest/.test(location.hash) && Array.isArray(payload.findings)) return ok({ lastSeen: '2026-10-14T08:00:00.000Z', state: null, previous: { at: '2026-10-14T08:00:00.000Z', keys: [...payload.findings.slice(2), 'gone1', 'gone2', 'gone3'] } });
+      return ok({
+        lastSeen: '2026-10-14T08:00:00.000Z',
+        state: /changed/.test(location.hash) ? { lastRun: new Date().toISOString(), lastChangeAt: '2026-10-20T03:00:00.000Z', lastChangeCount: 3, newHigh: 1, lastChanges: [{ type: 'transition', op: 'added', wf: 'IDE: Bedarfsworkflow', name: 'Ablehnen' }] } : s.monitorState || null,
+      });
+    case 'aiAsk':
+      await wait(700);
+      return ok({ answer: `(Mock) Zur Frage „${payload.question}“: Der Workflow „IDE: Bedarfsworkflow“ hat 15 Status. Die Transition „GB OK“ dürfen nur Mitglieder von „Procurement“ und zusätzlich „recht“ oder der Melder ausführen.`, model: 'claude-sonnet-5 (mock)' });
+    case 'aiPlan': {
+      await wait(900);
+      const text = String(payload.instructions || '').toLowerCase();
+      const ops = /eskal|escal/.test(text)
+        ? [{ op: 'addStatus', name: 'Eskaliert', category: 'IN_PROGRESS' }, { op: 'addTransition', name: 'Eskalieren', from: ['GB-Kontrolle', 'GB-Klärung'], to: 'Eskaliert' }, { op: 'addTransition', name: 'Deeskalieren', from: 'Eskaliert', to: 'GB-Kontrolle' }, { op: 'restrictTransition', transition: 'Eskalieren', roles: ['Administrators'] }]
+        : /pflicht|require/.test(text)
+          ? [{ op: 'requireFields', transition: 'Bestellung abschließen', fields: ['Warengruppe', 'GB erforderlich?'], message: 'Bitte Warengruppe und GB angeben' }]
+          : [];
+      const explanation = ops.length ? '(Mock) Ich lege den Status „Eskaliert“ an, erlaube die Eskalation aus GB-Kontrolle und GB-Klärung nur für Administratoren und ergänze einen Rückweg.' : '(Mock) Die Anfrage ist nicht eindeutig – bitte Status und Transition nennen.';
+      if (!ops.length) return ok({ plan: null, explanation, model: 'claude-sonnet-5 (mock)' });
+      const plan = await mockPlan(s, ops, payload.instructions, explanation, 'copilot');
+      return ok({ plan, explanation, model: 'claude-sonnet-5 (mock)' });
+    }
+    case 'createPlan':
+      return ok(await mockPlan(s, payload.ops, payload.instructions, '', 'ui', payload.lang));
+    case 'replanPlan': {
+      const old = s.plans[payload.id];
+      const plan = await mockPlan(s, old.ops, old.instructions || old.title, old.explanation, old.source, payload.lang);
+      if (old.status === 'planned' || old.status === 'invalid') old.status = 'discarded';
+      save(s);
+      return ok(plan);
+    }
+    case 'autofixPlan': {
+      const { normalize } = await import('../../../../src/shared/engine.js');
+      const { autofixOperations } = await import('../../../../src/shared/autopilot.js');
+      const b = makeProcurementBundle();
+      const m = normalize(b);
+      const wf = m.workflows[0];
+      const { findingFingerprint } = await import('../../../../src/shared/insights.js');
+      const only = Array.isArray(payload.fingerprints) ? new Set(payload.fingerprints) : null;
+      const { ops, manual } = autofixOperations(m, m.findings.filter((f) => f.wfId === wf.id && (!only || only.has(findingFingerprint(f)))), b.ref.resolutions);
+      if (!ops.length) return { ok: false, error: 'NOTHING_TO_FIX', message: payload.lang === 'de' ? 'Für diese Befunde gibt es keine automatische Korrektur.' : 'There is no automatic fix for these findings.' };
+      const n = new Set(ops.map((o) => o._f)).size;
+      const plan = await mockPlan(s, ops.map(({ _f, _wf, ...o }) => o), payload.lang === 'de' ? `Automatische Korrektur von ${n} Befund${n === 1 ? '' : 'en'} in „${wf.name}“` : `Auto-fix ${n} finding${n === 1 ? '' : 's'} in "${wf.name}"`, '', 'autofix', payload.lang);
+      plan.manual = manual.filter((f) => !plan.fixed.some((x) => x.id === f.id)).map((f) => ({ id: f.id, code: f.code, severity: f.severity, wfName: f.wfName, tName: f.tName, params: f.params, ruleLabel: f.ruleLabel, vendor: f.vendor }));
+      s.plans[plan.id] = plan;
+      save(s);
+      return ok(plan);
+    }
+    case 'listPlans':
+      return ok(Object.values(s.plans || {}).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((p) => ({ id: p.id, status: p.status, createdAt: p.createdAt, workflowName: p.workflowName, source: p.source, title: p.title, opCount: p.ops.length })));
+    case 'getPlan':
+      return ok((s.plans || {})[payload.id] || null);
+    case 'applyPlan': {
+      await wait(900);
+      const p = s.plans[payload.id];
+      if (p.sharedProjects.length > 1 && !payload.confirmShared) return { ok: false, error: 'SHARED_CONFIRM', message: 'shared' };
+      p.status = 'applied';
+      p.appliedAt = new Date().toISOString();
+      p.appliedBy = 'Mock Admin';
+      save(s);
+      return ok(p);
+    }
+    case 'rollbackPlan': {
+      const p = s.plans[payload.id];
+      p.status = 'rolledback';
+      save(s);
+      return ok(p);
+    }
+    case 'discardPlan':
+      s.plans[payload.id].status = 'discarded';
+      save(s);
+      return ok(true);
+    case 'siteBulkList':
+      return ok(Object.values(s.bulks || {}).map((b) => ({ id: b.id, title: b.title, createdAt: b.createdAt, targets: b.children.length, counts: {} })));
+    case 'siteBulkGet':
+      return ok((s.bulks || {})[payload.id]);
+    case 'siteBulkCreate': {
+      const b = { id: Date.now().toString(36), title: payload.instructions, createdAt: new Date().toISOString(), createdByName: 'Mock Admin', ops: payload.ops || [], autofix: payload.autofix, children: payload.workflowIds.map((workflowId) => ({ workflowId, status: 'pending' })) };
+      s.bulks = { ...(s.bulks || {}), [b.id]: b };
+      save(s);
+      return ok(b);
+    }
+    case 'siteBulkPlanBatch': {
+      const { dryRun } = await import('../../../../src/shared/autopilot.js');
+      const b = s.bulks[payload.bulkId];
+      const fx = makeProcurementBundle();
+      for (const ch of b.children.filter((c) => c.status === 'pending').slice(0, 5)) {
+        const raw = fx.workflows.find((w) => w.id === ch.workflowId) || fx.workflows[1];
+        let ops = b.ops;
+        if (b.autofix) {
+          const { normalize } = await import('../../../../src/shared/engine.js');
+          const { autofixOperations } = await import('../../../../src/shared/autopilot.js');
+          const { findingFingerprint } = await import('../../../../src/shared/insights.js');
+          const m = normalize(fx);
+          const want = new Set(b.autofix.fingerprints);
+          ops = autofixOperations(m, m.findings.filter((f) => f.wfId === raw.id && want.has(findingFingerprint(f))), fx.ref.resolutions).ops;
+          if (!ops.length) { Object.assign(ch, { workflowName: raw.name, status: 'nochange', error: 'Nothing to fix automatically in this workflow (any more)' }); continue; }
+        }
+        const dr = dryRun(fx, raw.id, ops);
+        const okReal = dr.results.some((r) => r.ok && !r.noop);
+        Object.assign(ch, { workflowName: raw.name, planId: ch.workflowId, status: !dr.results.some((r) => r.ok) ? 'invalid' : okReal ? 'planned' : 'nochange', healthBefore: dr.healthBefore, healthAfter: dr.healthAfter, changes: dr.changes.length, validationOk: okReal ? true : null, shared: ['IDE'], error: dr.results.filter((r) => !r.ok).map((r) => r.message).join('; ') || undefined });
+      }
+      save(s);
+      return ok(b);
+    }
+    case 'siteBulkApply': {
+      await wait(400);
+      const ch = s.bulks[payload.bulkId].children.find((c) => c.workflowId === payload.workflowId);
+      ch.status = 'applied';
+      save(s);
+      return ok(ch);
+    }
+    case 'siteBulkRollback': {
+      const ch = s.bulks[payload.bulkId].children.find((c) => c.workflowId === payload.workflowId);
+      ch.status = 'rolledback';
+      save(s);
+      return ok(ch);
+    }
+    case 'siteBulkAi':
+      await wait(600);
+      return ok({ operations: [{ op: 'restrictTransition', transition: '@done', roles: ['Administrators'] }], explanation: '(Mock) Restrict every transition into a Done status to the role Administrators.', model: 'mock' });
+    default:
+      return { ok: false, error: 'FAILED', message: `Unknown mock resolver ${name}` };
+  }
+}
+
+export const showFlag = () => ({ close() {} });

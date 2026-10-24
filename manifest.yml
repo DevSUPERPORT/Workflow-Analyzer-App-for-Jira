@@ -1,0 +1,501 @@
+app:
+  id: ari:cloud:ecosystem::app/66b30dff-8536-4de6-8630-65f355b28bcc
+  runtime:
+    name: nodejs22.x
+    memoryMB: 512
+    architecture: arm64
+
+modules:
+  jira:projectSettingsPage:
+    - key: workflow-analyzer-project
+      resource: main
+      resolver:
+        function: resolver
+      title:
+        i18n: module.title
+      icon: resource:main;app-icon-32.png
+      layout: blank
+
+  jira:adminPage:
+    - key: workflow-analyzer-admin
+      resource: main
+      resolver:
+        function: resolver
+      title:
+        i18n: module.adminTitle
+      icon: resource:main;app-icon-32.png
+      layout: blank
+
+  rovo:agent:
+    - key: workflow-analyst
+      name: Workflow Analyst
+      description: Explains Jira workflows, finds where apps, groups, fields and users
+        are used, and runs workflow health checks.
+      icon: resource:main;app-icon.png
+      prompt: |
+        You are "Workflow Analyst" by Superport, an expert for Jira Cloud workflow administration.
+        You help project administrators and Jira administrators understand and maintain workflows.
+
+        Always answer in the language the user writes in (German or English).
+
+        Use your actions to get live data – never invent statuses, transitions, groups, apps or fields:
+        - get-workflow-overview: summary of all workflows of a project (statuses, transitions, apps, health score).
+        - find-workflow-usages: where an app, group, project role, field, user, screen or permission is used in workflow rules.
+          Use it before somebody deletes a group, uninstalls an app, renames a field or deactivates a user.
+        - run-workflow-health-check: prioritised findings (dead ends, unreachable statuses, missing resolution,
+          references to deleted groups or inactive users, license-dependent app rules, hard-coded users).
+        - explain-transition: plain-language explanation of one transition with its conditions, validators and post functions.
+        - check-transition-access: simulate who can execute transitions (groups, project roles, reporter, assignee) – use it for
+          "why can't user X move the ticket?" support questions.
+        - get-status-load: live issue counts and stale issues per status – find bottlenecks and unused statuses.
+        - compare-workflows: differences and similarity between two workflows (consolidation and standardisation).
+        - create-remediation-tasks: create Jira tasks for health-check findings. Only when the user explicitly asks for it;
+          confirm the minimum severity and number of tasks first.
+
+        AUTOPILOT – you can change workflows for the user, safely:
+        1. plan-workflow-change: pass the user's request in "instructions" (the app's own AI converts it into operations),
+           or pass exact operations yourself in "operationsJson" ({"workflow": "...", "operations": [...]}). Operations:
+          - addStatus (name): Add a status. category: TODO | IN_PROGRESS | DONE (default IN_PROGRESS). Reuses an existing site status with the same name.
+          - removeStatus (status, moveIssuesTo): Remove a status from the workflow; issues in it move to moveIssuesTo. Transitions from/to it are removed.
+          - addTransition (name, to): Add a transition. from: list of status names, or "any" for a global transition. to: target status name.
+          - removeTransition (transition): Remove a transition (optionally only the link from one status: from).
+          - renameTransition (transition, newName): Rename a transition.
+          - addFromStatus (transition, from): Make an existing transition also available from additional statuses (list).
+          - restrictTransition (transition): Only allow listed groups / roles / reporter / assignee / permission to execute the transition (adds a condition, existing conditions stay).
+          - requireFields (transition, fields): Validator: listed fields (names or IDs) must be filled in. Optional message.
+          - setResolution (transition, resolution): Post function: set the resolution (name, e.g. "Done", or "none" to clear it).
+          - setAssignee (transition, to): Post function: assign to current-user | unassigned | default | <user account ID>.
+          - setTransitionScreen (transition, screen): Show a screen (name or ID) on the transition, or "none" to remove it.
+          - removeRule (transition, match): Remove conditions/validators/post functions whose rule key, app or description contains match. Optional kind: condition | validator | postfunction.
+          - removeReference (refType, ref): Remove a group / role / user (name or ID) from all Jira rules of the workflow (e.g. deleted group, inactive user).
+        2. Show the plan: operations, changes, health score before/after, fixed and new findings, projects sharing the workflow.
+        3. Only after the user explicitly confirms, call apply-workflow-change with the planId (confirmSharedWorkflow=true only if the
+           user accepted that other projects are affected). Every apply stores a backup and a snapshot.
+        4. Offer rollback-workflow-change if the user wants to undo. autofix-workflow creates a plan that fixes health findings automatically.
+        Never apply a change the user did not confirm. If the user says "just do it", still show a one-line summary before applying.
+
+        If the user does not name a project, use the project from the current page context. If there is none, ask for the project key.
+        Structure answers with short headings and bullet points. When listing affected transitions, show
+        "Workflow › Transition (From → To)". Recommend concrete next steps, ordered by risk.
+        Mention that full documentation (HTML/PDF) can be exported in Project settings › Workflow Analyzer.
+      conversationStarters:
+        - Summarise the workflows of this project
+        - Which apps do our workflows depend on?
+        - Run a workflow health check
+        - Are these groups still used in our workflows?
+        - Why can't the reporter close the ticket?
+        - Where do issues pile up in this project?
+        - Fix the workflow health findings automatically
+        - Add an approval step before Done, only for project admins
+      actions:
+        - get-workflow-overview
+        - find-workflow-usages
+        - run-workflow-health-check
+        - explain-transition
+        - check-transition-access
+        - get-status-load
+        - compare-workflows
+        - create-remediation-tasks
+        - plan-workflow-change
+        - apply-workflow-change
+        - rollback-workflow-change
+        - autofix-workflow
+        - list-workflow-change-plans
+
+  action:
+    - key: get-workflow-overview
+      name: Get workflow overview
+      function: actOverview
+      actionVerb: GET
+      description: Returns a summary of all workflows used by a Jira project –
+        statuses, transitions, issue types, third-party apps, rule counts and
+        health score.
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Key of the Jira project, e.g. KAN. Defaults to the project of the
+            current page.
+    - key: find-workflow-usages
+      name: Find workflow usages
+      function: actFindUsages
+      actionVerb: GET
+      description: Finds every workflow transition whose conditions, validators, post
+        functions or screens use a given app, group, project role, field, user,
+        screen or permission. Use for impact analysis before deleting or
+        changing these objects.
+      inputs:
+        searchTerm:
+          title: Search term
+          type: string
+          required: true
+          description: One or several names or IDs (comma or newline separated) of
+            apps, groups, roles, fields, users, screens or permissions, e.g.
+            "jira-procurement, old-legal-team". Use a list when the user wants to
+            delete several groups.
+        objectType:
+          title: Object type
+          type: string
+          required: false
+          description: Optional filter, one of app, group, role, field, user, screen,
+            status, permission.
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Key of the Jira project. Defaults to the project of the current page.
+    - key: run-workflow-health-check
+      name: Run workflow health check
+      function: actHealth
+      actionVerb: GET
+      description: Runs an automated health check on the workflows of a Jira project
+        and returns prioritised findings with recommendations.
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Key of the Jira project. Defaults to the project of the current page.
+        language:
+          title: Language
+          type: string
+          required: false
+          description: Language for finding texts, "en" or "de".
+    - key: explain-transition
+      name: Explain transition
+      function: actExplain
+      actionVerb: GET
+      description: Explains a single workflow transition in plain language including
+        who can execute it, what is checked and what happens afterwards.
+      inputs:
+        transitionName:
+          title: Transition name
+          type: string
+          required: true
+          description: Name of the transition, e.g. "Approve".
+        workflowName:
+          title: Workflow name
+          type: string
+          required: false
+          description: Optional workflow name if the project has several workflows.
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Key of the Jira project. Defaults to the project of the current page.
+        language:
+          title: Language
+          type: string
+          required: false
+          description: Language for the explanation, "en" or "de".
+
+    - key: check-transition-access
+      name: Check transition access
+      function: actAccess
+      actionVerb: GET
+      description: Simulates which workflow transitions a person can execute given
+        their groups, project roles and whether they are reporter or assignee.
+        Explains why a transition is blocked.
+      inputs:
+        transitionName:
+          title: Transition name
+          type: string
+          required: false
+          description: Optional transition name to check. Without it all transitions are
+            evaluated.
+        groupNames:
+          title: Groups
+          type: string
+          required: false
+          description: Comma-separated group names the person belongs to.
+        roleNames:
+          title: Project roles
+          type: string
+          required: false
+          description: Comma-separated project role names the person has.
+        isReporter:
+          title: Is reporter
+          type: boolean
+          required: false
+          description: Whether the person is the reporter of the issue.
+        isAssignee:
+          title: Is assignee
+          type: boolean
+          required: false
+          description: Whether the person is the assignee of the issue.
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Key of the Jira project. Defaults to the project of the current page.
+    - key: get-status-load
+      name: Get status load
+      function: actStatusLoad
+      actionVerb: GET
+      description: Returns live issue counts per workflow status, issues not updated
+        for a number of days, never-used statuses and bottleneck insights for a
+        project.
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Key of the Jira project. Defaults to the project of the current page.
+        staleDays:
+          title: Stale after days
+          type: integer
+          required: false
+          description: Number of days without update after which an issue counts as stale
+            (default 30).
+        language:
+          title: Language
+          type: string
+          required: false
+          description: Language for insight texts, "en" or "de".
+    - key: compare-workflows
+      name: Compare workflows
+      function: actCompare
+      actionVerb: GET
+      description: Compares two workflows of a project (statuses, transitions and
+        rules) and returns their similarity. Without names it lists
+        near-duplicate workflow pairs.
+      inputs:
+        workflowA:
+          title: First workflow
+          type: string
+          required: false
+          description: Name of the first workflow.
+        workflowB:
+          title: Second workflow
+          type: string
+          required: false
+          description: Name of the second workflow.
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Key of the Jira project. Defaults to the project of the current page.
+    - key: create-remediation-tasks
+      name: Create remediation tasks
+      function: actRemediate
+      actionVerb: CREATE
+      description: Creates Jira tasks in the project for workflow health-check
+        findings that do not have a task yet.
+      inputs:
+        minimumSeverity:
+          title: Minimum severity
+          type: string
+          required: false
+          description: One of high, medium, low. Default high.
+        maxTasks:
+          title: Maximum number of tasks
+          type: integer
+          required: false
+          description: Maximum number of tasks to create (1-10, default 5).
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Key of the Jira project. Defaults to the project of the current page.
+        language:
+          title: Language
+          type: string
+          required: false
+          description: Language of the task texts, "en" or "de".
+    - key: plan-workflow-change
+      name: Plan workflow change
+      function: actPlanChange
+      actionVerb: GET
+      description: Drafts a change plan for a workflow from a natural-language request
+        (or explicit operations) and dry-runs it – shows changes and health
+        impact. Does not change Jira.
+      inputs:
+        instructions:
+          title: Instructions
+          type: string
+          required: true
+          description: What the user wants to change, in their own words, with all details
+            (statuses, transitions, groups, fields).
+        workflowName:
+          title: Workflow name
+          type: string
+          required: false
+          description: Workflow to change if the project has several.
+        operationsJson:
+          title: Operations JSON
+          type: string
+          required: false
+          description: Optional explicit operations as JSON
+            ({"workflow":"...","operations":[{"op":"addTransition",...}]}).
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Key of the Jira project. Defaults to the project of the current page.
+        language:
+          title: Language
+          type: string
+          required: false
+          description: Language for texts, "en" or "de".
+    - key: apply-workflow-change
+      name: Apply workflow change
+      function: actApplyChange
+      actionVerb: UPDATE
+      description: Applies a previously created and user-confirmed change plan to the
+        Jira workflow (validated, with backup for rollback).
+      inputs:
+        planId:
+          title: Plan ID
+          type: string
+          required: true
+          description: ID returned by plan-workflow-change or autofix-workflow.
+        confirmSharedWorkflow:
+          title: Confirm shared workflow
+          type: boolean
+          required: false
+          description: True only if the user confirmed that other projects using the same
+            workflow are affected.
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Key of the Jira project. Defaults to the project of the current page.
+        language:
+          title: Language
+          type: string
+          required: false
+          description: Language for texts, "en" or "de".
+    - key: rollback-workflow-change
+      name: Roll back workflow change
+      function: actRollbackChange
+      actionVerb: UPDATE
+      description: Restores the workflow as it was before an applied change plan.
+      inputs:
+        planId:
+          title: Plan ID
+          type: string
+          required: true
+          description: ID of the applied plan to roll back.
+        confirmOverwrite:
+          title: Confirm overwriting later changes
+          type: string
+          required: false
+          description: Set to "true" only after the user confirmed that changes made to the workflow after the plan was applied may be undone too.
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Key of the Jira project. Defaults to the project of the current page.
+        language:
+          title: Language
+          type: string
+          required: false
+          description: Language for texts, "en" or "de".
+    - key: autofix-workflow
+      name: Auto-fix workflow findings
+      function: actAutofix
+      actionVerb: GET
+      description: Creates a change plan that automatically fixes health-check
+        findings (missing resolution, references to deleted groups or inactive
+        users, disabled rules). Does not change Jira until applied.
+      inputs:
+        workflowName:
+          title: Workflow name
+          type: string
+          required: false
+          description: Workflow to fix. Defaults to the workflow with most findings.
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Key of the Jira project. Defaults to the project of the current page.
+        language:
+          title: Language
+          type: string
+          required: false
+          description: Language for texts, "en" or "de".
+    - key: list-workflow-change-plans
+      name: List workflow change plans
+      function: actListPlans
+      actionVerb: GET
+      description: Lists recent Autopilot change plans of the project with their
+        status (planned, applied, failed, rolled back).
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Key of the Jira project. Defaults to the project of the current page.
+        language:
+          title: Language
+          type: string
+          required: false
+          description: Language for texts, "en" or "de".
+
+  llm:
+    - key: workflow-copilot
+      model:
+        - claude
+
+  scheduledTrigger:
+    - key: workflow-monitor-daily
+      function: monitor
+      interval: day
+
+  function:
+    - key: resolver
+      handler: index.handler
+    - key: actOverview
+      handler: index.actOverview
+    - key: actFindUsages
+      handler: index.actFindUsages
+    - key: actHealth
+      handler: index.actHealth
+    - key: actExplain
+      handler: index.actExplain
+    - key: actAccess
+      handler: index.actAccess
+    - key: actStatusLoad
+      handler: index.actStatusLoad
+    - key: actCompare
+      handler: index.actCompare
+    - key: actRemediate
+      handler: index.actRemediate
+    - key: actPlanChange
+      handler: index.actPlanChange
+    - key: actApplyChange
+      handler: index.actApplyChange
+    - key: actRollbackChange
+      handler: index.actRollbackChange
+    - key: actAutofix
+      handler: index.actAutofix
+    - key: actListPlans
+      handler: index.actListPlans
+    - key: monitor
+      handler: index.monitor
+      timeoutSeconds: 900
+
+resources:
+  - key: main
+    path: static/app/dist
+
+translations:
+  resources:
+    - key: en-US
+      path: locales/en-US.json
+    - key: de-DE
+      path: locales/de-DE.json
+  fallback:
+    default: en-US
+
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+    - read:jira-user
+    - manage:jira-configuration
+    - storage:app
+  content:
+    styles:
+      - unsafe-inline
