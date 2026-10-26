@@ -13,7 +13,7 @@ A Jira Cloud app built on Atlassian Forge. It reads workflows live from Jira, ex
 ![Runs on Atlassian](https://img.shields.io/badge/Runs%20on-Atlassian-0B8A5F)
 ![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![Node 22+](https://img.shields.io/badge/Node-22%2B-339933?logo=node.js&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-100%20passing-2E7D32)
+![Tests](https://img.shields.io/badge/tests-115%20passing-2E7D32)
 ![Languages](https://img.shields.io/badge/UI-EN%20%7C%20DE-E34B04)
 
 </div>
@@ -36,7 +36,8 @@ Atlassian no longer offers the workflow XML download, and the old XML-based *Wor
 | 🗺️ **Diagram** | Interactive graph with pan, zoom, path highlighting and overlays for issue load, persona access and impact. Exports as SVG, PNG or Mermaid. |
 | 📋 **Transitions** | The familiar per-status table: conditions (with AND/OR groups), validators, post functions, screens, properties and team notes. Filter by vendor, search with highlighting. |
 | 🔗 **Dependencies** | Every app, group, role, field, user, screen, status and permission used by workflow rules, down to the transition, including references inside JMWE, JSU and ScriptRunner configurations. |
-| 🩺 **Health check** | Dead ends, unreachable statuses, Done without resolution, unguarded global transitions, deleted groups, inactive users, disabled rules, licence-dependent app rules and more. Each comes with a fix. |
+| 🩺 **Health check** | Dead ends, unreachable statuses, Done transitions that miss or clear the resolution, Done transitions firing the Generic Event (no resolved/closed mails), unguarded global transitions, deleted groups, inactive users, disabled rules, licence-dependent app rules and more. Each comes with a fix. |
+| 🧹 **Issue resolutions** | The damage a wrong workflow already did: issues that are Done but Unresolved (counted as open in every report) and open issues that still carry a resolution. Review the list with a suggested resolution per status, repair all of them in one go without touching the status or sending mails, and undo any run. |
 | ⚡ **One-click fixes** | **Fix automatically** on any finding the app can repair, or **Fix N automatically** for a whole category. Findings that need judgement get **Fix with AI**: a precise, ready-to-send change request. |
 | ✦ **Autopilot** | Describe a change in plain English or German. It becomes structured operations, then a dry run with a diff and the health score before and after, then validation by Jira, then **apply → one-click rollback**. |
 | 🌐 **Site-wide bulk changes** | Jira admins change many workflows at once. Each workflow is planned, validated, applied and rolled back on its own, with live progress. Site-wide auto-fix plans every workflow with its own repairs. |

@@ -347,6 +347,14 @@ export default function Autopilot({ model, workflows, allWorkflows = workflows, 
                 </div>
               )}
 
+              {/* The workflow fix only helps future transitions: point at the existing issues that are still wrong */}
+              {plan.status === 'applied' && plan.fixed.some((f) => /RESOLUTION/.test(f.code)) && actions.resAudit && actions.resAudit.doneUnresolved + actions.resAudit.openResolved > 0 && (
+                <div className="alert">
+                  <Icon name="info" size={18} />
+                  <span style={{ flex: 1 }}>{actions.resAudit.doneUnresolved + actions.resAudit.openResolved === 1 ? t('rs.afterFix1') : t('rs.afterFix', { n: actions.resAudit.doneUnresolved + actions.resAudit.openResolved })}</span>
+                  <button type="button" className="btn small primary" onClick={actions.openResolutions}><Icon name="wand" />{t('rs.bannerAction')}</button>
+                </div>
+              )}
               {plan.errors?.length > 0 && <div className="alert error"><Icon name="alert" size={18} /><div className="stack" style={{ gap: 4 }}>{plan.errors.map((e, i) => <div key={i}>{e}</div>)}</div></div>}
               {plan.warnings?.length > 0 && <div className="alert"><Icon name="info" size={18} /><div className="stack" style={{ gap: 4 }}>{plan.warnings.map((e, i) => <div key={i}>{e}</div>)}</div></div>}
 

@@ -4,6 +4,7 @@
 
 import { getProjectBundle, getStatusLoad, getCreatableIssueTypes, createIssue } from './lib/jira.js';
 import { getRemediation, addRemediation } from './lib/store.js';
+import { resolutionAudit, resolutionIssues } from './lib/issues.js';
 import { simulatePersona, personaFor, compareWorkflows, similarPairs, loadInsights, findingToIssue } from './shared/insights.js';
 import { canAdministerProject } from './lib/auth.js';
 import * as plans from './lib/plans.js';
@@ -325,4 +326,27 @@ export async function actListPlans(payload) {
   const { project, error } = await projectFor(payload);
   if (error) return { error };
   return { project: project.key, plans: (await plans.listPlans(project.id)).slice(0, 15) };
+}
+
+// Issues whose resolution does not match their status, with the workflow findings that cause it (read-only;
+// repairs run in the app, where every change is confirmed and can be undone).
+export async function actResolutions(payload) {
+  const { model, error } = await load(payload);
+  if (error) return { error };
+  const lang = normalizeLang(payload?.language);
+  const key = model.project.key;
+  const [audit, done, open] = await Promise.all([resolutionAudit(key), resolutionIssues(key, 'doneUnresolved'), resolutionIssues(key, 'openResolved')]);
+  const causes = model.findings.filter((f) => /RESOLUTION/.test(f.code)).map((f) => ({ workflow: f.wfName, transition: f.tName || null, finding: findingText(lang, f).title, severity: f.severity }));
+  const slim = (i) => ({ key: i.key, summary: i.summary, status: i.status?.name, resolution: i.resolution?.name || 'Unresolved' });
+  return {
+    project: key,
+    doneButUnresolved: audit.doneUnresolved,
+    openButResolved: audit.openResolved,
+    examplesDoneButUnresolved: done.issues.slice(0, 10).map(slim),
+    examplesOpenButResolved: open.issues.slice(0, 10).map(slim),
+    causesInWorkflows: causes,
+    howToFix: audit.doneUnresolved + audit.openResolved
+      ? 'Fix the workflow first (auto-fix the listed findings), then repair the existing issues in Project settings › Workflow Analyzer › Health check › Issue resolutions (status stays, no notification mails for Jira admins, undo available).'
+      : 'Nothing to repair.',
+  };
 }

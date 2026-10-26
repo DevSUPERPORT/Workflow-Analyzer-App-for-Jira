@@ -655,11 +655,18 @@ export function resolutionFor(tr, resolutions, fallback) {
   return fallback;
 }
 
+const defaultResolution = (resolutions) => (resolutions || []).find((r) => /^(done|fertig|erledigt|behoben|fixed)$/i.test(r.name)) || (resolutions || [])[0] || null;
+
+/** Resolution that fits an issue sitting in a Done status ("Abgelehnt" → Declined / Won't Do, otherwise Done). */
+export function suggestResolution(statusName, resolutions) {
+  return resolutionFor({ to: { name: statusName }, name: '' }, resolutions, defaultResolution(resolutions));
+}
+
 /** Deterministic auto-fix operations for health findings. Returns { ops, manual: findings without auto-fix }. */
 export function autofixOperations(model, findings, resolutions = []) {
   const ops = [];
   const manual = [];
-  const done = (resolutions || []).find((r) => /^(done|fertig|erledigt|behoben|fixed)$/i.test(r.name)) || resolutions[0];
+  const done = defaultResolution(resolutions);
   const seen = new Set();
   const push = (o) => {
     const k = JSON.stringify(o);

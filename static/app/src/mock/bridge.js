@@ -38,6 +38,17 @@ export const rovo = {
 
 const ok = (data) => ({ ok: true, data });
 
+// Issues with a resolution that does not match their status (persisted in the mock store so repairs stick)
+function mockIssues(s) {
+  if (!s.resIssues) {
+    const DONE = [{ id: '10287', name: 'Ware geliefert', category: 'DONE' }, { id: '10286', name: 'Bestellung abgeschlossen', category: 'DONE' }, { id: '10301', name: 'Nicht genehmigt', category: 'DONE' }];
+    const things = ['Laptop für Neuzugang', 'Monitor 27 Zoll', 'Lizenz Adobe CC', 'Headset Vertrieb', 'Docking-Station', 'Tastatur DE', 'iPhone Ersatz', 'Beamer Raum 4', 'Server-RAM', 'Webcam HR'];
+    s.resIssues = Array.from({ length: 23 }, (_, i) => ({ key: `IDE-${101 + i}`, summary: `${things[i % things.length]}${i >= things.length ? ` (${Math.floor(i / things.length) + 1})` : ''}`, status: DONE[i % 3], res: null, updated: new Date(Date.now() - i * 36e5 * 7).toISOString() }));
+    s.resIssues.push({ key: 'IDE-140', summary: 'Wieder geöffnet: Drucker', status: { id: '10640', name: 'GB-Kontrolle', category: 'IN_PROGRESS' }, res: '10000', updated: new Date().toISOString() });
+  }
+  return s.resIssues;
+}
+
 async function mockPlan(s, ops, instructions, explanation, source, lang) {
   const { dryRun } = await import('../../../../src/shared/autopilot.js');
   const b = makeProcurementBundle();
@@ -298,6 +309,45 @@ export async function invoke(name, payload = {}) {
       save(s);
       return ok(ch);
     }
+    // Issue resolution check & repair (compare-and-set, run log) – mirrors src/lib/issues.js
+    case 'resolutionAudit': {
+      const list = mockIssues(s);
+      save(s);
+      if (/resfail/.test(location.hash)) return { ok: false, error: 'FAILED', message: 'Mock failure' };
+      return ok({ projectKey: 'IDE', doneUnresolved: list.filter((i) => i.status.category === 'DONE' && !i.res).length, openResolved: list.filter((i) => i.status.category !== 'DONE' && i.res).length, at: new Date().toISOString() });
+    }
+    case 'resolutionIssues': {
+      const want = payload.kind === 'openResolved' ? (i) => i.status.category !== 'DONE' && i.res : (i) => i.status.category === 'DONE' && !i.res;
+      const all = mockIssues(s).filter(want);
+      const start = Number(payload.nextPageToken || 0);
+      const page = all.slice(start, start + 15);
+      const RES = { 10000: 'Done', 10001: "Won't Do" };
+      return ok({ kind: payload.kind, issues: page.map((i) => ({ key: i.key, summary: i.summary, status: i.status, resolution: i.res ? { id: i.res, name: RES[i.res] } : null, issueType: 'Bedarf', project: { key: 'IDE', name: 'IT-Bedarf' }, updated: i.updated })), nextPageToken: start + page.length < all.length ? String(start + page.length) : null });
+    }
+    case 'resolutionRepair': {
+      await wait(350);
+      const list = mockIssues(s);
+      const results = (payload.items || []).map((it) => {
+        const issue = list.find((i) => i.key === it.key);
+        if (!issue) return { ...it, status: 'failed', code: 'NOT_FOUND' };
+        if (/role=project/.test(location.hash) && issue.key.endsWith('3')) return { ...it, status: 'failed', code: 'NOT_ON_SCREEN' };
+        if ((issue.res || null) === (it.to || null)) return { ...it, status: 'skipped', code: 'ALREADY_DONE' };
+        if ((issue.res || null) !== (it.from || null)) return { ...it, status: 'skipped', code: 'CHANGED' };
+        issue.res = it.to || null;
+        return { ...it, status: 'repaired' };
+      });
+      s.resRuns ||= [];
+      let run = s.resRuns.find((r) => r.id === payload.runId);
+      if (!run) { run = { id: payload.runId, kind: payload.kind, at: new Date().toISOString(), by: 'Mock Admin', undoOf: payload.undoOf || null, items: [], failed: 0, skipped: 0 }; s.resRuns.unshift(run); }
+      run.items.push(...results.filter((r) => r.status === 'repaired').map(({ key, from, to }) => ({ key, from, to })));
+      run.failed += results.filter((r) => r.status === 'failed').length;
+      run.skipped += results.filter((r) => r.status === 'skipped').length;
+      if (payload.undoOf) { const o = s.resRuns.find((r) => r.id === payload.undoOf); if (o) o.undoneBy = payload.runId; }
+      save(s);
+      return ok({ results, silent: !/role=project/.test(location.hash), run: { id: run.id, items: run.items.length } });
+    }
+    case 'resolutionRuns':
+      return ok(s.resRuns || []);
     case 'siteBulkAi':
       await wait(600);
       return ok({ operations: [{ op: 'restrictTransition', transition: '@done', roles: ['Administrators'] }], explanation: '(Mock) Restrict every transition into a Done status to the role Administrators.', model: 'mock' });

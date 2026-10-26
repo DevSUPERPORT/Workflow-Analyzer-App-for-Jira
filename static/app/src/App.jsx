@@ -21,6 +21,7 @@ import BulkAutopilot from './components/BulkAutopilot.jsx';
 import Flow from './components/Flow.jsx';
 import Compare from './components/Compare.jsx';
 import Remediate from './components/Remediate.jsx';
+import Resolutions from './components/Resolutions.jsx';
 import Tour, { tourDone } from './components/Tour.jsx';
 import { collectPrincipals, simulatePersona, personaFromSelection, findingFingerprint, findingKey } from '../../../src/shared/insights.js';
 import symbolWhite from './assets/superport-symbol-white.png';
@@ -59,6 +60,8 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [hcFocus, setHcFocus] = useState(null); // finding code the Health tab is narrowed to
   const [apIntent, setApIntent] = useState(null); // hand-off to Autopilot: { planId } or { text, wfId }
+  const [resAudit, setResAudit] = useState(null); // issue resolution check: counts, false when unavailable
+  const [resOpen, setResOpen] = useState(false);
   const bootRef = useRef(null);
   const t = useCallback((k, v) => translate(lang, k, v), [lang]);
 
@@ -187,6 +190,11 @@ export default function App() {
       setLoadState('error');
     }
   };
+
+  // Issue resolution check: two approximate counts, refreshed with every analysis and after each repair
+  const fetchResAudit = useCallback(() => call('resolutionAudit').then(setResAudit).catch(() => setResAudit(false)), []);
+  useEffect(() => { if (model) fetchResAudit(); }, [model, fetchResAudit]);
+  const resWrong = resAudit ? resAudit.doneUnresolved + resAudit.openResolved : 0;
 
   const askRovo = (prompt) => openRovo(prompt).catch(() => toast(t('app.rovoUnavailable')));
 
@@ -321,6 +329,9 @@ export default function App() {
       setTab('diagram');
     },
     openRemediation: (findings) => setRemFindings(findings),
+    // Existing issues whose resolution does not match their status (Health tab, repair panel open)
+    openResolutions: () => { setResOpen(true); setHcFocus(null); setTab('health'); },
+    resAudit,
     openBulk: (prefill) => { setBulkPrefill({ ...prefill, at: Date.now() }); setTab('bulk'); },
     askRovo,
     exportSelection: (keys) => {
@@ -503,6 +514,13 @@ export default function App() {
                   <button type="button" className="btn small ghost" aria-label={t('app.dismiss')} onClick={() => setVisit({ ...visit, lastSeen: visit.state.lastChangeAt })}><Icon name="x" /></button>
                 </div>
               )}
+              {resWrong > 0 && tab === 'overview' && (
+                <div className="alert view">
+                  <Icon name="alert" size={18} />
+                  <span style={{ flex: 1 }}>{resWrong === 1 ? t('rs.banner1') : t('rs.banner', { n: resWrong })}</span>
+                  <button type="button" className="btn small primary" onClick={actions.openResolutions}><Icon name="wand" />{t('rs.bannerAction')}</button>
+                </div>
+              )}
               {model.warnings?.length > 0 && (
                 <details className="alert info">
                   <summary><span className="small">{t('app.warning')}: {model.warnings.length}</span></summary>
@@ -526,7 +544,7 @@ export default function App() {
                   ) : <div className="empty">{t('dg.selectWorkflow')}</div>)}
                   {tab === 'transitions' && <Transitions model={model} workflows={workflows} search={search} setSearch={setSearch} />}
                   {tab === 'impact' && <Impact model={model} refType={refType} setRefType={setRefType} refId={refId} setRefId={setRefId} refData={bundle?.ref} />}
-                  {tab === 'health' && <Health model={model} workflows={workflows} sev={sev} setSev={setSev} focus={hcFocus} remediation={remediation} siteUrl={ctx?.siteUrl} resolutions={bundle?.ref?.resolutions} />}
+                  {tab === 'health' && <Health model={model} workflows={workflows} sev={sev} setSev={setSev} focus={hcFocus} remediation={remediation} siteUrl={ctx?.siteUrl} resolutions={bundle?.ref?.resolutions} dataCard={resAudit === false ? null : <Resolutions audit={resAudit} refreshAudit={fetchResAudit} resolutions={bundle?.ref?.resolutions || []} siteUrl={ctx?.siteUrl} open={resOpen} setOpen={setResOpen} />} />}
                   {tab === 'access' && <Access model={model} workflows={workflows} persona={persona} setPersona={setPersona} />}
                   {tab === 'flow' && <Flow model={model} workflows={workflows} load={load} loadState={loadState} fetchLoad={fetchLoad} />}
                   {tab === 'compare' && <Compare model={model} />}

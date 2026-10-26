@@ -34,6 +34,9 @@ export class FakeJira {
     this.appHidden = new Set(); // projects whose permission scheme does not grant the app (asApp) access
     this.nextStatusId = 20000;
     this.nextIssue = 1;
+    // Live superportdev: the Resolution field is on no edit screen; only Jira admins may override screen security
+    this.resolutionOnEditScreen = false;
+    this.edits = [];
   }
 
   // ------------------------------------------------------------- seeding helpers
@@ -61,9 +64,9 @@ export class FakeJira {
     return w;
   }
 
-  addIssue({ projectId, issueTypeId = '1', statusId, updated = new Date().toISOString() }) {
+  addIssue({ projectId, issueTypeId = '1', statusId, updated = new Date().toISOString(), resolution = null, summary = 'Issue' }) {
     const p = this.projects.find((x) => x.id === String(projectId));
-    const issue = { key: `${p.key}-${this.nextIssue++}`, projectId: String(projectId), issueTypeId, statusId: String(statusId), updated };
+    const issue = { key: `${p.key}-${this.nextIssue++}`, projectId: String(projectId), issueTypeId, statusId: String(statusId), updated, resolution, summary };
     this.issues.push(issue);
     return issue;
   }
@@ -198,7 +201,37 @@ export class FakeJira {
       issue.labels = body.fields.labels;
       return { key: issue.key };
     }
+    if (method === 'POST' && p === '/rest/api/3/search/jql') {
+      const all = this.filter(body.jql).sort((a, b) => String(b.updated).localeCompare(String(a.updated)));
+      const start = Number(body.nextPageToken || 0);
+      const page = all.slice(start, start + (body.maxResults || 50));
+      return { issues: page.map((i) => this.issueJson(i)), ...(start + page.length < all.length ? { nextPageToken: String(start + page.length) } : {}) };
+    }
+    if ((m = /^\/rest\/api\/3\/issue\/([A-Z][A-Z0-9_]*-\d+)$/.exec(p))) {
+      const issue = this.issues.find((i) => i.key === m[1]);
+      if (!issue || (asUser && this.hiddenFromUser?.has(issue.projectId))) throw err(404, 'Issue does not exist or you do not have permission to see it.');
+      if (method === 'GET') return this.issueJson(issue);
+      if (method === 'PUT') {
+        const override = q.get('overrideScreenSecurity') === 'true';
+        if ((override || q.get('notifyUsers') === 'false') && !this.perms.ADMINISTER) throw err(403, 'Connect app users with "admin" permission and Forge apps acting on behalf of users with ADMINISTER permission can override screen security.');
+        if ('resolution' in (body.fields || {})) {
+          if (!override && !this.resolutionOnEditScreen) throw err(400, "Field 'resolution' cannot be set. It is not on the appropriate screen, or unknown.");
+          const r = body.fields.resolution;
+          if (r && !this.resolutions.some((x) => x.id === String(r.id))) throw err(400, 'Resolution id not found');
+          issue.resolution = r ? String(r.id) : null;
+          this.edits.push({ key: issue.key, resolution: issue.resolution, notify: q.get('notifyUsers') !== 'false' });
+        }
+        return respond(204, null);
+      }
+    }
     throw err(404, `FakeJira: no route ${method} ${p}`);
+  }
+
+  issueJson(i) {
+    const st = this.statuses.get(i.statusId);
+    const pr = this.projects.find((x) => x.id === i.projectId);
+    const res = i.resolution ? this.resolutions.find((r) => r.id === i.resolution) : null;
+    return { key: i.key, fields: { summary: i.summary, updated: i.updated, project: { key: pr.key, name: pr.name }, issuetype: { name: pr.issueTypes.find((t) => t.id === i.issueTypeId)?.name || 'Task' }, status: { id: st.id, name: st.name, statusCategory: { key: st.statusCategory === 'DONE' ? 'done' : st.statusCategory === 'TODO' ? 'new' : 'indeterminate' } }, resolution: res ? { id: res.id, name: res.name } : null } };
   }
 
   // ------------------------------------------------------------- workflow update rules
@@ -284,6 +317,10 @@ export class FakeJira {
   }
 
   count(jql) {
+    return this.filter(jql).length;
+  }
+
+  filter(jql) {
     const pm = /project = "?([\w]+)"?/.exec(jql);
     const pr = pm && this.projects.find((x) => x.id === pm[1] || x.key === pm[1]);
     let list = this.issues.filter((i) => !pr || i.projectId === pr.id);
@@ -293,9 +330,12 @@ export class FakeJira {
     const it = /issuetype = (\d+)/.exec(jql);
     if (it) list = list.filter((i) => i.issueTypeId === it[1]);
     if (/statusCategory != Done/.test(jql)) list = list.filter((i) => this.statuses.get(i.statusId)?.statusCategory !== 'DONE');
+    else if (/statusCategory = Done/.test(jql)) list = list.filter((i) => this.statuses.get(i.statusId)?.statusCategory === 'DONE');
+    if (/resolution is EMPTY/.test(jql)) list = list.filter((i) => !i.resolution);
+    if (/resolution is not EMPTY/.test(jql)) list = list.filter((i) => !!i.resolution);
     const upd = /updated <= -(\d+)d/.exec(jql);
     if (upd) list = list.filter((i) => Date.now() - new Date(i.updated).getTime() >= Number(upd[1]) * 864e5);
-    return list.length;
+    return list;
   }
 }
 

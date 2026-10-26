@@ -13,7 +13,7 @@ export const GUIDE = {
       title: 'Golden rules for safe use',
       rules: [
         'Analysing is always safe: Overview, Diagram, Transitions, Dependencies, Access, Flow, Health, Compare and Export only read data.',
-        'Jira is changed only by an Autopilot plan after you click "Apply to Jira" – never automatically, never by the AI alone.',
+        'Jira is changed only when you confirm it: by an Autopilot plan after "Apply to Jira", or by repairing issue resolutions after "Yes, repair" – never automatically, never by the AI alone.',
         'Read every plan before applying: operations (✓/✕), change preview, health score before/after and new findings.',
         'Try bigger changes in a test space first (e.g. a copy of your project) before changing a productive workflow.',
         'Watch the "shared workflow" warning: a shared workflow change affects every listed project.',
@@ -92,6 +92,7 @@ export const GUIDE = {
           { title: 'Health check', text: 'Every finding has a recommendation. Use "Show transition" to jump to the cause.', tab: 'health', tabLabel: 'Health check' },
           { title: 'Auto-fix', text: 'Autopilot › "Auto-fix findings" creates a reviewable plan for findings that can be fixed automatically and lists the rest for manual follow-up.' },
           { title: 'Jira tasks', text: '"Create Jira tasks" turns findings into tasks (labels workflow-health, superport-wfa) – duplicates are skipped.' },
+          { title: 'Issue resolutions', text: 'A workflow fix only helps future transitions. Health check › "Issue resolutions" shows issues that are Done but Unresolved (reports count them as open) and open issues that still carry a resolution. "Review & repair" lists all of them with a suggestion per status (e.g. "Not approved" → Won’t Do); after you confirm, only the Resolution field is set or cleared – the status stays, and Jira admins send no notification mails. Every run is in the repair history and can be undone; issues changed meanwhile are never overwritten.' },
         ],
       },
       {
@@ -116,7 +117,7 @@ export const GUIDE = {
     faq: {
       title: 'Frequently asked questions',
       items: [
-        { q: 'Can the analysis break anything?', a: 'No. All tabs except the Autopilot "Apply" and "Roll back" buttons, "Create Jira tasks" and "Enable monitoring" only read data.' },
+        { q: 'Can the analysis break anything?', a: 'No. All tabs except the Autopilot "Apply" and "Roll back" buttons, "Create Jira tasks", "Enable monitoring" and the issue resolution repair only read data.' },
         { q: 'Why do I see "depends" in the access simulator?', a: 'The result depends on data of the concrete issue (field values, history) or on app conditions that are only evaluated at runtime.' },
         { q: 'Why can\'t I apply a plan?', a: 'Company-managed workflows can only be changed by Jira administrators. For shared workflows, confirm the warning first. Plans expire after 7 days.' },
         { q: 'Where is the old XML upload?', a: 'Not needed anymore – the app reads the workflow configuration directly from Jira.' },
@@ -136,7 +137,7 @@ export const GUIDE = {
       title: 'Goldene Regeln für die sichere Nutzung',
       rules: [
         'Analysieren ist immer sicher: Übersicht, Diagramm, Transitionen, Abhängigkeiten, Zugriff, Fluss, Prüfung, Vergleich und Export lesen nur Daten.',
-        'Jira wird nur durch einen Autopilot-Plan geändert, nachdem Sie „In Jira übernehmen“ klicken – nie automatisch, nie durch die KI allein.',
+        'Jira wird nur geändert, wenn Sie es bestätigen: durch einen Autopilot-Plan nach „In Jira übernehmen“ oder durch die Reparatur von Vorgangslösungen nach „Ja, reparieren“ – nie automatisch, nie durch die KI allein.',
         'Jeden Plan vor dem Übernehmen lesen: Operationen (✓/✕), Vorschau der Änderungen, Health-Score vorher/nachher und neue Befunde.',
         'Größere Änderungen zuerst in einem Test-Space ausprobieren (z. B. Kopie des Projekts), bevor ein produktiver Workflow geändert wird.',
         'Auf den Hinweis „gemeinsam genutzter Workflow“ achten: Die Änderung betrifft jedes aufgeführte Projekt.',
@@ -215,6 +216,7 @@ export const GUIDE = {
           { title: 'Prüfung', text: 'Jeder Befund hat eine Empfehlung. „Transition anzeigen“ springt zur Ursache.', tab: 'health', tabLabel: 'Prüfung' },
           { title: 'Automatisch beheben', text: 'Autopilot › „Befunde automatisch beheben“ erstellt einen prüfbaren Plan für automatisch behebbare Befunde und listet den Rest zur manuellen Nacharbeit.' },
           { title: 'Jira-Aufgaben', text: '„Jira-Aufgaben erstellen“ macht aus Befunden Aufgaben (Labels workflow-health, superport-wfa) – Duplikate werden übersprungen.' },
+          { title: 'Lösungen der Vorgänge', text: 'Eine Workflow-Korrektur wirkt nur für künftige Transitionen. Prüfung › „Lösungen der Vorgänge“ zeigt Vorgänge, die erledigt, aber ungelöst sind (Berichte zählen sie als offen), und offene Vorgänge mit Lösung. „Prüfen & reparieren“ listet alle mit einem Vorschlag je Status (z. B. „Nicht genehmigt“ → Won’t Do); nach Bestätigung wird nur das Feld Lösung gesetzt bzw. geleert – der Status bleibt, für Jira-Admins ohne Benachrichtigungen. Jeder Lauf steht im Reparatur-Verlauf und lässt sich rückgängig machen; inzwischen geänderte Vorgänge werden nie überschrieben.' },
         ],
       },
       {
@@ -239,7 +241,7 @@ export const GUIDE = {
     faq: {
       title: 'Häufige Fragen',
       items: [
-        { q: 'Kann die Analyse etwas kaputt machen?', a: 'Nein. Alle Tabs außer den Autopilot-Buttons „In Jira übernehmen“ und „Zurücksetzen“, „Jira-Aufgaben erstellen“ und „Überwachung aktivieren“ lesen nur Daten.' },
+        { q: 'Kann die Analyse etwas kaputt machen?', a: 'Nein. Alle Tabs außer den Autopilot-Buttons „In Jira übernehmen“ und „Zurücksetzen“, „Jira-Aufgaben erstellen“, „Überwachung aktivieren“ und die Reparatur von Vorgangslösungen lesen nur Daten.' },
         { q: 'Warum steht im Zugriffssimulator „abhängig“?', a: 'Das Ergebnis hängt von Daten des konkreten Vorgangs (Feldwerte, Historie) oder von App-Bedingungen ab, die erst zur Laufzeit geprüft werden.' },
         { q: 'Warum kann ich einen Plan nicht übernehmen?', a: 'Unternehmensverwaltete Workflows dürfen nur Jira-Administratoren ändern. Bei gemeinsam genutzten Workflows zuerst den Hinweis bestätigen. Pläne verfallen nach 7 Tagen.' },
         { q: 'Wo ist der alte XML-Upload?', a: 'Nicht mehr nötig – die App liest die Workflow-Konfiguration direkt aus Jira.' },

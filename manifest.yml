@@ -48,6 +48,8 @@ modules:
         - check-transition-access: simulate who can execute transitions (groups, project roles, reporter, assignee) – use it for
           "why can't user X move the ticket?" support questions.
         - get-status-load: live issue counts and stale issues per status – find bottlenecks and unused statuses.
+        - check-issue-resolutions: issues in a Done status without a resolution (reports count them as open) and open issues that
+          still carry one, with the workflow findings that cause it. Repairs happen in the app (Health check › Issue resolutions).
         - compare-workflows: differences and similarity between two workflows (consolidation and standardisation).
         - create-remediation-tasks: create Jira tasks for health-check findings. Only when the user explicitly asks for it;
           confirm the minimum severity and number of tasks first.
@@ -86,6 +88,7 @@ modules:
         - Are these groups still used in our workflows?
         - Why can't the reporter close the ticket?
         - Where do issues pile up in this project?
+        - Are there Done issues without a resolution?
         - Fix the workflow health findings automatically
         - Add an approval step before Done, only for project admins
       actions:
@@ -95,6 +98,7 @@ modules:
         - explain-transition
         - check-transition-access
         - get-status-load
+        - check-issue-resolutions
         - compare-workflows
         - create-remediation-tasks
         - plan-workflow-change
@@ -254,6 +258,24 @@ modules:
           type: string
           required: false
           description: Language for insight texts, "en" or "de".
+    - key: check-issue-resolutions
+      name: Check issue resolutions
+      function: actResolutions
+      actionVerb: GET
+      description: Counts and lists issues whose resolution does not match their
+        status (Done but Unresolved, open but resolved) and names the workflow
+        findings that cause it.
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Key of the Jira project. Defaults to the project of the current page.
+        language:
+          title: Language
+          type: string
+          required: false
+          description: Language for texts, "en" or "de".
     - key: compare-workflows
       name: Compare workflows
       function: actCompare
@@ -473,6 +495,8 @@ modules:
       handler: index.actAutofix
     - key: actListPlans
       handler: index.actListPlans
+    - key: actResolutions
+      handler: index.actResolutions
     - key: monitor
       handler: index.monitor
       timeoutSeconds: 900

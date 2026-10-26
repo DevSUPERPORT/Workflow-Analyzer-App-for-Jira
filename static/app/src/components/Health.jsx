@@ -7,7 +7,7 @@ import { findingFingerprint, findingKey } from '../../../../src/shared/insights.
 import { autofixOperations } from '../../../../src/shared/autopilot.js';
 import { openIssue } from './Remediate.jsx';
 
-export default function Health({ model, workflows, sev, setSev, focus = null, remediation = {}, siteUrl, resolutions = [] }) {
+export default function Health({ model, workflows, sev, setSev, focus = null, remediation = {}, siteUrl, resolutions = [], dataCard = null }) {
   const t = useT();
   const { actions, caps } = useApp();
   const [busy, setBusy] = useState(null); // 'all' or a finding id while its fix plan is created
@@ -68,6 +68,9 @@ export default function Health({ model, workflows, sev, setSev, focus = null, re
           )}
         </div>
       </section>
+
+      {/* Live issue data: the consequences of resolution findings in existing issues */}
+      {(!focus || (typeof focus === 'string' && /RESOLUTION/.test(focus))) && dataCard}
 
       <div className="toolbar" role="group" aria-label={t('tab.health')}>
         {focus && (
