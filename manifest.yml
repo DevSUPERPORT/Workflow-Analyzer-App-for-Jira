@@ -42,7 +42,7 @@ modules:
         - get-workflow-overview: summary of all workflows of a project (statuses, transitions, apps, health score).
         - find-workflow-usages: where an app, group, project role, field, user, screen or permission is used in workflow rules.
           Use it before somebody deletes a group, uninstalls an app, renames a field or deactivates a user.
-        - run-workflow-health-check: prioritised findings (dead ends, unreachable statuses, missing resolution,
+        - run-workflow-health-check: prioritised findings (dead ends, unreachable statuses, missing resolution, Generic Event on Done transitions,
           references to deleted groups or inactive users, license-dependent app rules, hard-coded users).
         - explain-transition: plain-language explanation of one transition with its conditions, validators and post functions.
         - check-transition-access: simulate who can execute transitions (groups, project roles, reporter, assignee) – use it for
@@ -64,6 +64,7 @@ modules:
           - restrictTransition (transition): Only allow listed groups / roles / reporter / assignee / permission to execute the transition (adds a condition, existing conditions stay).
           - requireFields (transition, fields): Validator: listed fields (names or IDs) must be filled in. Optional message.
           - setResolution (transition, resolution): Post function: set the resolution (name, e.g. "Done", or "none" to clear it).
+          - setEvent (transition, event): Set the issue event the transition fires, e.g. "Issue Resolved" or "Issue Closed" on Done transitions (used by notification schemes).
           - setAssignee (transition, to): Post function: assign to current-user | unassigned | default | <user account ID>.
           - setTransitionScreen (transition, screen): Show a screen (name or ID) on the transition, or "none" to remove it.
           - removeRule (transition, match): Remove conditions/validators/post functions whose rule key, app or description contains match. Optional kind: condition | validator | postfunction.
@@ -397,8 +398,8 @@ modules:
       function: actAutofix
       actionVerb: GET
       description: Creates a change plan that automatically fixes health-check
-        findings (missing resolution, references to deleted groups or inactive
-        users, disabled rules). Does not change Jira until applied.
+        findings (missing or cleared resolution, Generic Event on Done transitions,
+        references to deleted groups or inactive users, disabled rules). Does not change Jira until applied.
       inputs:
         workflowName:
           title: Workflow name

@@ -4,7 +4,7 @@
 // Operations are produced by humans (templates/UI), by the in-app Copilot (Forge LLM tool call)
 // or by the Rovo agent. They are always validated and dry-run before anything is applied.
 
-import { normalize } from './engine.js';
+import { normalize, SYSTEM_EVENTS, GENERIC_EVENT_ID } from './engine.js';
 import { makeSnapshot, diffSnapshots } from './snapshot.js';
 import { findingFingerprint } from './insights.js';
 import { splitList } from './rules.js';
@@ -19,6 +19,7 @@ export const OPS = {
   restrictTransition: { required: ['transition'], doc: 'Only allow listed groups / roles / reporter / assignee / permission to execute the transition (adds a condition, existing conditions stay).' },
   requireFields: { required: ['transition', 'fields'], doc: 'Validator: listed fields (names or IDs) must be filled in. Optional message.' },
   setResolution: { required: ['transition', 'resolution'], doc: 'Post function: set the resolution (name, e.g. "Done", or "none" to clear it).' },
+  setEvent: { required: ['transition', 'event'], doc: 'Set the issue event the transition fires (name or ID, e.g. "Issue Resolved", "Issue Closed"; "generic" for the Generic Event). Notification schemes send mails per event.' },
   setAssignee: { required: ['transition', 'to'], doc: 'Post function: assign to current-user | unassigned | default | <user account ID>.' },
   setTransitionScreen: { required: ['transition', 'screen'], doc: 'Show a screen (name or ID) on the transition, or "none" to remove it.' },
   removeRule: { required: ['transition', 'match'], doc: 'Remove conditions/validators/post functions whose rule key, app or description contains match. Optional kind: condition | validator | postfunction.' },
@@ -45,7 +46,7 @@ export const OPS_JSON_SCHEMA = {
           groups: { type: 'array', items: { type: 'string' } }, roles: { type: 'array', items: { type: 'string' } },
           reporter: { type: 'boolean' }, assignee: { type: 'boolean' }, permission: { type: 'string' },
           fields: { type: 'array', items: { type: 'string' } }, message: { type: 'string' },
-          resolution: { type: 'string' }, screen: { type: 'string' },
+          resolution: { type: 'string' }, event: { type: 'string' }, screen: { type: 'string' },
           match: { type: 'string' }, kind: { type: 'string', enum: ['condition', 'validator', 'postfunction'] },
           refType: { type: 'string', enum: ['group', 'role', 'user'] }, ref: { type: 'string' }, with: { type: 'string', description: 'replacement (replaceReference)' },
         },
@@ -66,6 +67,7 @@ export const OP_EXAMPLES = {
   restrictTransition: { op: 'restrictTransition', transition: 'Escalate', groups: ['managers'], roles: ['Administrators'], reporter: false },
   requireFields: { op: 'requireFields', transition: 'Done', fields: ['Due date'], message: 'Please set a due date' },
   setResolution: { op: 'setResolution', transition: 'Reject', resolution: "Won't Do" },
+  setEvent: { op: 'setEvent', transition: 'Done', event: 'Issue Resolved' },
   setAssignee: { op: 'setAssignee', transition: 'Start', to: 'current-user' },
   setTransitionScreen: { op: 'setTransitionScreen', transition: 'Done', screen: 'Resolve screen' },
   removeRule: { op: 'removeRule', transition: 'Done', match: 'restrict-issue-transition', kind: 'condition' },
@@ -93,11 +95,12 @@ export function normalizeOp(raw) {
     case 'addFromStatus': take('from', 'fromStatus', 'fromStatuses', 'status', 'statuses'); break;
     case 'requireFields': take('fields', 'field', 'fieldNames'); break;
     case 'setAssignee': take('to', 'assignee', 'user'); break;
+    case 'setEvent': take('event', 'eventName', 'eventId', 'customIssueEventId'); break;
     case 'removeReference': take('ref', 'name', 'id', 'group', 'user', 'role'); take('refType', 'type'); break;
     case 'replaceReference': take('ref', 'from', 'old', 'group', 'user', 'role'); take('with', 'to', 'new', 'replacement'); take('refType', 'type'); break;
     default: break;
   }
-  if (['restrictTransition', 'requireFields', 'setResolution', 'setAssignee', 'setTransitionScreen', 'removeRule', 'removeTransition', 'addFromStatus'].includes(op.op)) take('transition', 'name', 'transitionName');
+  if (['restrictTransition', 'requireFields', 'setResolution', 'setEvent', 'setAssignee', 'setTransitionScreen', 'removeRule', 'removeTransition', 'addFromStatus'].includes(op.op)) take('transition', 'name', 'transitionName');
   if (op.op === 'restrictTransition') { take('groups', 'group'); take('roles', 'role', 'projectRoles'); }
   return op;
 }
@@ -179,8 +182,8 @@ class NoopError extends Error {}
 
 // Operation result messages, in the language of the person planning the change (English is the default)
 const LABEL = {
-  en: { Field: 'Field', Group: 'Group', 'Project role': 'Project role', Resolution: 'Resolution', Screen: 'Screen', group: 'group', role: 'role', user: 'user', 'allow-reporter': 'the reporter', 'allow-assignee': 'the assignee' },
-  de: { Field: 'Feld', Group: 'Gruppe', 'Project role': 'Projektrolle', Resolution: 'Lösung', Screen: 'Maske', group: 'Gruppe', role: 'Rolle', user: 'Benutzer', 'allow-reporter': 'der Autor', 'allow-assignee': 'der Bearbeiter' },
+  en: { Field: 'Field', Group: 'Group', 'Project role': 'Project role', Resolution: 'Resolution', Event: 'Event', Screen: 'Screen', group: 'group', role: 'role', user: 'user', 'allow-reporter': 'the reporter', 'allow-assignee': 'the assignee' },
+  de: { Field: 'Feld', Group: 'Gruppe', 'Project role': 'Projektrolle', Resolution: 'Lösung', Event: 'Ereignis', Screen: 'Maske', group: 'Gruppe', role: 'Rolle', user: 'Benutzer', 'allow-reporter': 'der Autor', 'allow-assignee': 'der Bearbeiter' },
 };
 const MSG = {
   en: {
@@ -213,6 +216,7 @@ const MSG = {
     tmResolution: () => 'Team-managed spaces set the resolution automatically when an issue enters a Done status – Jira does not allow a resolution rule here, nothing to change',
     clearsResolution: () => 'Clears the resolution',
     setsResolution: (v) => `Sets resolution "${v.name}"`,
+    firesEvent: (v) => `Fires event "${v.name}"`,
     assignee: (v) => `Assignee → ${v.to}`,
     removesScreen: () => 'Removes the screen',
     showsScreen: (v) => `Shows screen "${v.name}"`,
@@ -255,6 +259,7 @@ const MSG = {
     tmResolution: () => 'Teamverwaltete Bereiche setzen die Lösung automatisch, wenn ein Vorgang einen Erledigt-Status erreicht – Jira erlaubt hier keine Lösungsregel, nichts zu ändern',
     clearsResolution: () => 'Leert die Lösung',
     setsResolution: (v) => `Setzt die Lösung „${v.name}“`,
+    firesEvent: (v) => `Löst das Ereignis „${v.name}“ aus`,
     assignee: (v) => `Bearbeiter → ${v.to}`,
     removesScreen: () => 'Entfernt die Maske',
     showsScreen: (v) => `Zeigt die Maske „${v.name}“`,
@@ -466,6 +471,19 @@ export function applyOperations(rawWf, ops, ctx) {
           message = `${trName(op.transition)}: ${none ? m('clearsResolution') : m('setsResolution', { name: res.name })}`;
           break;
         }
+        case 'setEvent': {
+          const events = ctx.events?.length ? ctx.events : ref.events?.length ? ref.events : SYSTEM_EVENTS;
+          const generic = /^(generic|generic event|allgemein|allgemeines ereignis|none|default|-)$/i.test(String(op.event).trim());
+          const ev = generic ? events.find((e) => String(e.id) === GENERIC_EVENT_ID) || { id: GENERIC_EVENT_ID, name: 'Generic Event' }
+            : (events.find((e) => lc(e.name) === lc(op.event) || String(e.id) === String(op.event).trim() || lc(e.name) === lc(`issue ${op.event}`)) || find(events, op.event, 'Event'));
+          for (const t of transitionsByName(op.transition)) {
+            // Without customIssueEventId Jira fires the Generic Event
+            if (String(ev.id) === GENERIC_EVENT_ID) delete t.customIssueEventId;
+            else t.customIssueEventId = String(ev.id);
+          }
+          message = `${trName(op.transition)}: ${m('firesEvent', { name: ev.name })}`;
+          break;
+        }
         case 'setAssignee': {
           const v = lc(op.to);
           const type = v === 'current-user' || v === 'current' ? 'to-current-user' : v === 'unassigned' ? 'to-unassigned' : v === 'default' ? 'to-default-user' : 'to-selected-user';
@@ -653,7 +671,13 @@ export function autofixOperations(model, findings, resolutions = []) {
     const tr = wf?.transitions.find((t) => t.key === f.tKey);
     switch (f.code) {
       case 'DONE_NO_RESOLUTION':
+      case 'DONE_CLEARS_RESOLUTION':
         if (tr && done) push({ op: 'setResolution', transition: tr.id, resolution: resolutionFor(tr, resolutions, done).name, _wf: f.wfId, _f: f.id });
+        else manual.push(f);
+        break;
+      case 'DONE_GENERIC_EVENT':
+        // A final "Closed" status gets "Issue Closed", every other Done status "Issue Resolved"
+        if (tr) push({ op: 'setEvent', transition: tr.id, event: /clos|geschlossen/i.test(tr.to?.name || '') ? '5' : '4', _wf: f.wfId, _f: f.id });
         else manual.push(f);
         break;
       case 'REOPEN_KEEPS_RESOLUTION':

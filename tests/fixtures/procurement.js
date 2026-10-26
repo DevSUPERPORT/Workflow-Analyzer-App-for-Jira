@@ -153,7 +153,7 @@ const bug = {
   transitions: [
     { id: '1', name: 'Create', type: 'INITIAL', toStatusReference: R(1), links: [], conditions: { operation: 'ALL', conditions: [], conditionGroups: [] }, validators: [], actions: [] },
     { id: '11', name: 'Start', type: 'DIRECTED', toStatusReference: R(3), links: link(1), conditions: { operation: 'ALL', conditions: [], conditionGroups: [] }, validators: [], actions: [{ ruleKey: 'system:change-assignee', parameters: { type: 'to-current-user' } }] },
-    { id: '21', name: 'Done', type: 'DIRECTED', toStatusReference: R(10001), links: link(3), conditions: { operation: 'ALL', conditions: [], conditionGroups: [] }, validators: [], actions: [resolution()] },
+    { id: '21', name: 'Done', type: 'DIRECTED', toStatusReference: R(10001), links: link(3), customIssueEventId: '4', conditions: { operation: 'ALL', conditions: [], conditionGroups: [] }, validators: [], actions: [resolution()] },
     { id: '31', name: 'Reopen', type: 'DIRECTED', toStatusReference: R(1), links: link(10001), conditions: { operation: 'ALL', conditions: [], conditionGroups: [] }, validators: [], actions: [resolution('')] },
   ],
 };

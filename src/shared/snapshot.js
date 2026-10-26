@@ -42,6 +42,7 @@ export function makeSnapshot(model, meta = {}) {
         f: t.from.map((f) => f.name),
         to: t.to?.name || null,
         sc: t.screen?.name || null,
+        ev: t.eventName || null,
         r: allRules(t).map((r) => [ruleSignature(r), `${r.vendor.name}: ${r.label || r.fallbackName || r.nameKey || r.ruleKey}`, r.kind]),
       })),
     })),
@@ -84,7 +85,9 @@ export function diffSnapshots(a, b) {
     for (const [i, t] of tb) {
       const o = ta.get(i);
       if (!o) continue;
-      for (const [field, x, y] of [['name', o.n, t.n], ['to', o.to, t.to], ['from', o.f.join(', '), t.f.join(', ')], ['screen', o.sc, t.sc]]) {
+      // Snapshots stored before events were tracked have no "ev" – do not report every transition as changed
+      const events = o.ev === undefined ? [] : [['event', o.ev, t.ev]];
+      for (const [field, x, y] of [['name', o.n, t.n], ['to', o.to, t.to], ['from', o.f.join(', '), t.f.join(', ')], ['screen', o.sc, t.sc], ...events]) {
         if ((x || '') !== (y || '')) changes.push({ type: 'transition', op: 'changed', wf: wb.n, name: t.n, detail: { field, from: x, to: y } });
       }
       const ra = new Map(o.r.map((r) => [r[0], r]));

@@ -10,6 +10,16 @@ import { detectVendor, forgeModuleFromKey } from './vendors.js';
 
 export const KINDS = ['condition', 'validator', 'postfunction'];
 export const SEVERITY_WEIGHT = { high: 8, medium: 3, low: 1, info: 0 };
+// Jira system issue events (IDs are the same on every site); a transition without customIssueEventId fires the Generic Event
+export const SYSTEM_EVENTS = [
+  { id: '1', name: 'Issue Created' }, { id: '2', name: 'Issue Updated' }, { id: '3', name: 'Issue Assigned' },
+  { id: '4', name: 'Issue Resolved' }, { id: '5', name: 'Issue Closed' }, { id: '6', name: 'Issue Commented' },
+  { id: '7', name: 'Issue Reopened' }, { id: '8', name: 'Issue Deleted' }, { id: '9', name: 'Issue Moved' },
+  { id: '10', name: 'Work Logged On Issue' }, { id: '11', name: 'Work Started On Issue' }, { id: '12', name: 'Work Stopped On Issue' },
+  { id: '13', name: 'Generic Event' }, { id: '14', name: 'Issue Comment Edited' }, { id: '15', name: 'Issue Worklog Updated' },
+  { id: '16', name: 'Issue Worklog Deleted' }, { id: '17', name: 'Issue Comment Deleted' },
+];
+export const GENERIC_EVENT_ID = '13';
 
 // ---------------------------------------------------------------- lookups
 
@@ -44,6 +54,7 @@ export function buildLookups(bundle) {
   for (const r of ref.roles || []) L.roles.set(String(r.id), { id: String(r.id), name: r.name });
   for (const u of ref.users || []) L.users.set(String(u.accountId), { id: String(u.accountId), name: u.displayName || u.accountId, active: u.active !== false, type: u.accountType });
   for (const s of ref.screens || []) L.screens.set(String(s.id), { id: String(s.id), name: s.name });
+  L.events = new Map([...SYSTEM_EVENTS, ...(ref.events || [])].map((e) => [String(e.id), e.name]));
   const perms = ref.permissions?.permissions || ref.permissions || {};
   for (const [k, p] of Object.entries(perms)) L.permissions.set(k, { id: k, name: p?.name || k });
   for (const s of bundle.statuses || []) {
@@ -286,6 +297,7 @@ export function normalizeWorkflow(wf, L, extra = {}) {
       screens,
       properties: t.properties || {},
       eventId: t.customIssueEventId || null,
+      eventName: L.events.get(String(t.customIssueEventId || GENERIC_EVENT_ID)) || String(t.customIssueEventId),
       conditions: normalizeConditionGroup(t.conditions, L),
       validators: (t.validators || []).map((r) => normalizeRule(r, 'validator', L)),
       postFunctions: (t.actions || []).map((r) => normalizeRule(r, 'postfunction', L)),
@@ -506,15 +518,25 @@ export function runHealthChecks(model) {
       const rules = allRules(t);
       const toDone = t.to && statusByRef.get(t.to.ref)?.category === 'DONE';
       const fromDone = t.from.length > 0 && t.from.every((f) => statusByRef.get(f.ref)?.category === 'DONE');
-      const setsResolution = t.postFunctions.some((r) => /resolution/i.test(String(r.params.field || r.params.targetFieldKey || '')) || r.refs.some((x) => x.type === 'field' && x.id === 'resolution'));
+      // "Update field: Resolution" with an empty value clears the resolution – it does not set one
+      const resolutionRules = t.postFunctions.filter((r) => /resolution/i.test(String(r.params.field || r.params.targetFieldKey || '')) || r.refs.some((x) => x.type === 'field' && x.id === 'resolution'));
+      const clearsValue = (r) => r.ruleKey === 'system:update-field' && (r.params.value == null || String(r.params.value).trim() === '');
+      const setsResolution = resolutionRules.some((r) => !clearsValue(r));
+      const clearsResolution = resolutionRules.some(clearsValue);
 
       // Team-managed spaces set/clear the resolution automatically on Done statuses (and reject
       // "update field" rules for it), so resolution findings only apply to company-managed workflows.
       const autoResolution = wf.scope === 'PROJECT';
       if (!autoResolution && toDone && !fromDone && !setsResolution) {
-        push({ ...tb, severity: t.screen ? 'low' : 'medium', code: t.screen ? 'DONE_RESOLUTION_SCREEN' : 'DONE_NO_RESOLUTION', params: { status: t.to.name } });
+        // A clearing post function runs after the screen, so a Resolution field on the screen does not help
+        if (clearsResolution) push({ ...tb, severity: 'medium', code: 'DONE_CLEARS_RESOLUTION', params: { status: t.to.name } });
+        else push({ ...tb, severity: t.screen ? 'low' : 'medium', code: t.screen ? 'DONE_RESOLUTION_SCREEN' : 'DONE_NO_RESOLUTION', params: { status: t.to.name } });
       }
-      if (!autoResolution && fromDone && t.to && !toDone && !setsResolution) push({ ...tb, severity: 'low', code: 'REOPEN_KEEPS_RESOLUTION', params: { status: t.to.name } });
+      if (!autoResolution && fromDone && t.to && !toDone && !resolutionRules.length) push({ ...tb, severity: 'low', code: 'REOPEN_KEEPS_RESOLUTION', params: { status: t.to.name } });
+      // Notification schemes send "Issue Resolved" / "Issue Closed" mails; the Generic Event on a Done transition bypasses them
+      if (!autoResolution && toDone && !fromDone && (!t.eventId || String(t.eventId) === GENERIC_EVENT_ID)) {
+        push({ ...tb, severity: 'low', code: 'DONE_GENERIC_EVENT', params: { status: t.to.name } });
+      }
       if (t.isGlobal && !t.isLoop && t.counts.condition === 0) push({ ...tb, severity: 'low', code: 'GLOBAL_UNGUARDED', params: { status: t.to?.name || '' } });
       if (t.complexity >= 12) push({ ...tb, severity: 'info', code: 'COMPLEX', params: { n: t.complexity } });
 

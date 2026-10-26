@@ -1,6 +1,6 @@
 // Phase 2 + Autopilot dictionary (merged into DICT by i18n.js).
 
-const CODES = ['NO_INITIAL', 'DEAD_END', 'UNREACHABLE', 'DEPRECATED_STATUS', 'DUPLICATE_NAME', 'DONE_NO_RESOLUTION', 'DONE_RESOLUTION_SCREEN', 'REOPEN_KEEPS_RESOLUTION', 'GLOBAL_UNGUARDED', 'HARDCODED_USER', 'UNRESOLVED_REF', 'INACTIVE_USER', 'LICENSE_GUARD', 'COMPLEX', 'DISABLED_RULE', 'CONFIG_UNREADABLE'];
+const CODES = ['NO_INITIAL', 'DEAD_END', 'UNREACHABLE', 'DEPRECATED_STATUS', 'DUPLICATE_NAME', 'DONE_NO_RESOLUTION', 'DONE_RESOLUTION_SCREEN', 'REOPEN_KEEPS_RESOLUTION', 'DONE_CLEARS_RESOLUTION', 'DONE_GENERIC_EVENT', 'GLOBAL_UNGUARDED', 'HARDCODED_USER', 'UNRESOLVED_REF', 'INACTIVE_USER', 'LICENSE_GUARD', 'COMPLEX', 'DISABLED_RULE', 'CONFIG_UNREADABLE'];
 void CODES;
 
 export const en2 = {
@@ -202,6 +202,8 @@ export const en2 = {
   'plan.action.DONE_NO_RESOLUTION': 'Set the resolution on Done transitions',
   'plan.action.DONE_RESOLUTION_SCREEN': 'Verify resolution screens',
   'plan.action.REOPEN_KEEPS_RESOLUTION': 'Clear the resolution when re-opening',
+  'plan.action.DONE_CLEARS_RESOLUTION': 'Stop Done transitions from clearing the resolution',
+  'plan.action.DONE_GENERIC_EVENT': 'Fire "Issue Resolved" on Done transitions',
   'plan.action.GLOBAL_UNGUARDED': 'Restrict global transitions',
   'plan.action.HARDCODED_USER': 'Replace hard-coded users with roles',
   'plan.action.UNRESOLVED_REF': 'Fix references to deleted objects',
@@ -575,6 +577,8 @@ export const de2 = {
   'plan.action.DONE_NO_RESOLUTION': 'Lösung bei Fertig-Transitionen setzen',
   'plan.action.DONE_RESOLUTION_SCREEN': 'Lösungsmasken prüfen',
   'plan.action.REOPEN_KEEPS_RESOLUTION': 'Lösung beim Wiedereröffnen zurücksetzen',
+  'plan.action.DONE_CLEARS_RESOLUTION': 'Fertig-Transitionen dürfen die Lösung nicht leeren',
+  'plan.action.DONE_GENERIC_EVENT': 'Bei Fertig-Transitionen „Vorgang gelöst“ auslösen',
   'plan.action.GLOBAL_UNGUARDED': 'Globale Transitionen einschränken',
   'plan.action.HARDCODED_USER': 'Feste Benutzer durch Rollen ersetzen',
   'plan.action.UNRESOLVED_REF': 'Verweise auf gelöschte Objekte korrigieren',

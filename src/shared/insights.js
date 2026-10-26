@@ -224,7 +224,7 @@ export function compareWorkflows(a, b) {
 
 export const CATEGORY_OF = {
   NO_INITIAL: 'structure', DEAD_END: 'structure', UNREACHABLE: 'structure', DEPRECATED_STATUS: 'structure', DUPLICATE_NAME: 'structure',
-  DONE_NO_RESOLUTION: 'data', DONE_RESOLUTION_SCREEN: 'data', REOPEN_KEEPS_RESOLUTION: 'data',
+  DONE_NO_RESOLUTION: 'data', DONE_RESOLUTION_SCREEN: 'data', REOPEN_KEEPS_RESOLUTION: 'data', DONE_CLEARS_RESOLUTION: 'data', DONE_GENERIC_EVENT: 'data',
   GLOBAL_UNGUARDED: 'access', HARDCODED_USER: 'access',
   UNRESOLVED_REF: 'integrity', INACTIVE_USER: 'integrity', LICENSE_GUARD: 'integrity',
   COMPLEX: 'maintainability', DISABLED_RULE: 'maintainability', CONFIG_UNREADABLE: 'maintainability', INACTIVE_WORKFLOW: 'maintainability',
@@ -243,7 +243,7 @@ export function governance(model) {
   return CATEGORIES.map((c) => ({ key: c, count: res[c].count, score: Math.max(0, Math.round(100 - res[c].penalty / scale)) }));
 }
 
-const EFFORT = { NO_INITIAL: 'M', DEAD_END: 'S', UNREACHABLE: 'S', DEPRECATED_STATUS: 'M', DUPLICATE_NAME: 'S', DONE_NO_RESOLUTION: 'S', DONE_RESOLUTION_SCREEN: 'S', REOPEN_KEEPS_RESOLUTION: 'S', GLOBAL_UNGUARDED: 'S', HARDCODED_USER: 'M', UNRESOLVED_REF: 'S', INACTIVE_USER: 'S', LICENSE_GUARD: 'L', COMPLEX: 'L', DISABLED_RULE: 'S', CONFIG_UNREADABLE: 'M' };
+const EFFORT = { NO_INITIAL: 'M', DEAD_END: 'S', UNREACHABLE: 'S', DEPRECATED_STATUS: 'M', DUPLICATE_NAME: 'S', DONE_NO_RESOLUTION: 'S', DONE_RESOLUTION_SCREEN: 'S', REOPEN_KEEPS_RESOLUTION: 'S', DONE_CLEARS_RESOLUTION: 'S', DONE_GENERIC_EVENT: 'S', GLOBAL_UNGUARDED: 'S', HARDCODED_USER: 'M', UNRESOLVED_REF: 'S', INACTIVE_USER: 'S', LICENSE_GUARD: 'L', COMPLEX: 'L', DISABLED_RULE: 'S', CONFIG_UNREADABLE: 'M' };
 const SEV_RANK = { high: 0, medium: 1, low: 2, info: 3 };
 
 /** Findings grouped into prioritised actions (management summary). */

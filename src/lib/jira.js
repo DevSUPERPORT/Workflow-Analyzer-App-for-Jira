@@ -195,7 +195,7 @@ async function getScreens(ids, warnings) {
  */
 export async function getReferenceData(ids, warnings, { firstWorkflowId } = {}) {
   ids = { group: [], groupName: [], user: [], screen: [], ...(ids || {}) };
-  const [fields, roles, groups, users, screens, permissions, capabilities, resolutions] = await Promise.all([
+  const [fields, roles, groups, users, screens, permissions, capabilities, resolutions, events] = await Promise.all([
     safe(warnings, 'fields', () => jira(route`/rest/api/3/field`), null),
     safe(warnings, 'roles', () => jira(route`/rest/api/3/role`), null),
     getAllGroups(warnings),
@@ -204,6 +204,7 @@ export async function getReferenceData(ids, warnings, { firstWorkflowId } = {}) 
     safe(warnings, 'permissions', () => jira(route`/rest/api/3/permissions`), null),
     firstWorkflowId ? safe(warnings, 'capabilities', () => jira(route`/rest/api/3/workflows/capabilities?workflowId=${firstWorkflowId}`), null) : null,
     safe(warnings, 'resolutions', () => jira(route`/rest/api/3/resolution`), null),
+    safe(warnings, 'events', () => jira(route`/rest/api/3/events`), null),
   ]);
 
   // Referenced groups missing from the (possibly capped) list are resolved directly by ID / name, so that
@@ -223,6 +224,8 @@ export async function getReferenceData(ids, warnings, { firstWorkflowId } = {}) 
     users,
     screens,
     resolutions: resolutions ? resolutions.map((r) => ({ id: String(r.id), name: r.name })) : [],
+    // Issue events incl. custom ones (the transition's "Event"); without them the system events are used
+    events: events ? events.map((e) => ({ id: String(e.id), name: e.name })) : null,
     permissions: permissions ? Object.fromEntries(Object.entries(permissions.permissions || {}).map(([k, p]) => [k, { name: p.name }])) : null,
     capabilities: capabilities
       ? {
