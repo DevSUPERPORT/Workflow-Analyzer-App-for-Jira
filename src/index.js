@@ -10,7 +10,7 @@ import { normalizeLang } from './shared/i18n.js';
 import { assertProjectAdmin, assertJiraAdmin, ForbiddenError, canAdministerProject, isJiraAdmin, userCapabilities } from './lib/auth.js';
 import * as store from './lib/store.js';
 import * as issues from './lib/issues.js';
-import { normalize } from './shared/engine.js';
+import { normalize, clearingSelfTransitions } from './shared/engine.js';
 import { makeSnapshot } from './shared/snapshot.js';
 
 export { actOverview, actFindUsages, actHealth, actExplain, actStatusLoad, actAccess, actCompare, actRemediate, actPlanChange, actApplyChange, actRollbackChange, actAutofix, actListPlans, actResolutions } from './rovo.js';
@@ -321,7 +321,7 @@ define('siteBulkAi', async ({ instructions, workflowId, lang }, context) => {
 // one project key from the payload.
 async function resolutionScope(context, payload) {
   const project = await requireAccess(context);
-  if (project) return { projectKey: project.key, scope: `p-${project.id}`, admin: await isJiraAdmin() };
+  if (project) return { projectKey: project.key, projectId: project.id, scope: `p-${project.id}`, admin: await isJiraAdmin() };
   const key = payload?.projectKey ? String(payload.projectKey).toUpperCase() : null;
   if (key && !issues.isProjectKey(key)) throw new Error('Invalid project key');
   return { projectKey: key, scope: 'site', admin: true };
@@ -338,8 +338,11 @@ define('resolutionIssues', async ({ kind, nextPageToken, ...payload }, context) 
 });
 
 define('resolutionRepair', async ({ items, runId, kind, undoOf, ...payload }, context) => {
-  const { projectKey, scope, admin } = await resolutionScope(context, payload);
-  const out = await issues.repairResolutions({ projectKey: scope === 'site' ? null : projectKey, items, admin });
+  const { projectKey, projectId, scope, admin } = await resolutionScope(context, payload);
+  // Clearing needs the project's workflows: Jira Cloud only clears a resolution through a transition
+  const clearsSome = Array.isArray(items) && items.some((i) => i && (i.to == null || i.to === ''));
+  const clearing = clearsSome && scope !== 'site' ? clearingSelfTransitions(normalize(await getProjectBundle(projectId))) : null;
+  const out = await issues.repairResolutions({ projectKey: scope === 'site' ? null : projectKey, items, admin, clearing });
   const user = await me();
   const run = await issues.recordRun(scope, { runId, kind, undoOf, by: user?.displayName, results: out.results }).catch(() => null);
   return { ...out, run: run ? { id: run.id, items: run.items.length } : null };

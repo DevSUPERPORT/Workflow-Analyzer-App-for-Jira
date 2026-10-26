@@ -61,6 +61,8 @@ export default function Resolutions({ audit, refreshAudit, resolutions = [], sit
     }
   };
   const loadRuns = () => call('resolutionRuns').then(setRuns).catch(() => setRuns([]));
+  // The history (and its Undo) must stay reachable when nothing is left to repair
+  useEffect(() => { loadRuns(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open) return;
@@ -135,6 +137,7 @@ export default function Resolutions({ audit, refreshAudit, resolutions = [], sit
         </div>
         <div className="row" style={{ gap: 8 }}>
           {total > 0 && !open && <button type="button" className="btn primary" onClick={() => setOpen(true)}><Icon name="wand" />{t('rs.review')}</button>}
+          {total === 0 && !open && runs?.length > 0 && <button type="button" className="btn small" onClick={() => setOpen(true)}><Icon name="history" />{t('rs.history', { n: runs.length })}</button>}
           {open && <button type="button" className="btn small ghost" onClick={() => setOpen(false)}>{t('rs.close')}</button>}
           <button type="button" className="btn small ghost only" onClick={() => refreshAudit?.()} aria-label={t('app.refresh')} title={t('app.refresh')}><Icon name="refresh" /></button>
         </div>
@@ -166,7 +169,7 @@ export default function Resolutions({ audit, refreshAudit, resolutions = [], sit
               </ul>
             )}
           </div>
-          {!run.running && run.label !== 'undo' && counts.repaired > 0 && (
+          {!run.running && run.label !== 'undo' && counts.repaired > 0 && run.results.filter((r) => r.status === 'repaired').every((r) => !r.to) && (
             <button type="button" className="btn small" onClick={() => undo(run.results.filter((r) => r.status === 'repaired'), run.id)}><Icon name="undo" />{t('rs.undo')}</button>
           )}
           {!run.running && <button type="button" className="btn small ghost only" aria-label={t('app.dismiss')} onClick={() => setRun(null)}><Icon name="x" /></button>}
@@ -233,7 +236,7 @@ export default function Resolutions({ audit, refreshAudit, resolutions = [], sit
               </div>
               {list?.nextPageToken && <button type="button" className={`btn small ${listState === 'loading' ? 'busy' : ''}`} disabled={listState === 'loading'} onClick={() => loadList(kind, list.nextPageToken)}>{t('rs.loadMore')}</button>}
 
-              <p className="small muted" style={{ margin: 0 }}><Icon name="info" size={13} /> {caps?.jiraAdmin ? t('rs.noteAdmin') : t('rs.noteProject')}</p>
+              <p className="small muted" style={{ margin: 0 }}><Icon name="info" size={13} /> {kind === 'openResolved' ? t('rs.noteClear') : caps?.jiraAdmin ? t('rs.noteSetAdmin') : t('rs.noteSetProject')}</p>
               {!confirming ? (
                 <div className="row">
                   <button type="button" className="btn primary" disabled={!ready.length || run?.running} onClick={() => setConfirming(true)}>
@@ -242,9 +245,9 @@ export default function Resolutions({ audit, refreshAudit, resolutions = [], sit
                   {chosen.length > ready.length && <span className="small muted">{tn('rs.missingChoice', chosen.length - ready.length)}</span>}
                 </div>
               ) : (
-                <div className="confirm" role="alertdialog" aria-label={tn('rs.confirm', ready.length)}>
+                <div className="confirm" role="alertdialog" aria-label={(kind === 'doneUnresolved' ? tn('rs.confirmSet', ready.length) : tn('rs.confirmClear', ready.length))}>
                   <Icon name="play" size={16} />
-                  <span className="small">{tn('rs.confirm', ready.length)}</span>
+                  <span className="small">{(kind === 'doneUnresolved' ? tn('rs.confirmSet', ready.length) : tn('rs.confirmClear', ready.length))}</span>
                   <button type="button" className="btn small primary" autoFocus onClick={repair}>{t('rs.confirmYes')}</button>
                   <button type="button" className="btn small" onClick={() => setConfirming(false)}>{t('ap.confirmNo')}</button>
                 </div>
@@ -253,7 +256,7 @@ export default function Resolutions({ audit, refreshAudit, resolutions = [], sit
           )}
 
           {runs?.length > 0 && (
-            <details className="rs-history">
+            <details className="rs-history" open={!issues.length || undefined}>
               <summary className="small">{t('rs.history', { n: runs.length })}</summary>
               <ul className="small">
                 {runs.map((r) => (
@@ -262,7 +265,7 @@ export default function Resolutions({ audit, refreshAudit, resolutions = [], sit
                       {t.date(r.at)} · {r.by || '–'} · {r.undoOf ? tn('rs.histUndo', r.items.length) : tn('rs.histRun', r.items.length)}
                       {r.items.length > 0 && <span className="muted"> ({r.items.slice(0, 3).map((i) => `${i.key} → ${i.to ? resName(i.to) : t('rs.unresolved')}`).join(', ')}{r.items.length > 3 ? ' …' : ''})</span>}
                     </span>
-                    {!r.undoOf && !r.undoneBy && r.items.length > 0 && <button type="button" className="btn small ghost" disabled={run?.running} onClick={() => undo(r.items, r.id)}><Icon name="undo" />{t('rs.undo')}</button>}
+                    {!r.undoOf && !r.undoneBy && r.items.length > 0 && r.items.every((i) => !i.to) && <button type="button" className="btn small ghost" disabled={run?.running} onClick={() => undo(r.items, r.id)}><Icon name="undo" />{t('rs.undo')}</button>}
                     {r.undoneBy && <span className="chip small-chip">{t('rs.wasUndone')}</span>}
                   </li>
                 ))}

@@ -428,6 +428,7 @@ export const en2 = {
   'rs.err.NO_PERMISSION': 'You may not edit this issue.',
   'rs.err.NOT_FOUND': 'The issue no longer exists or you cannot see it.',
   'rs.err.OUT_OF_SCOPE': 'The issue belongs to another project.',
+  'rs.err.CANNOT_CLEAR': 'Jira cannot clear a resolution in place, and no transition into this issue\'s status clears it. Move the issue out of its status and back to clear it.',
   'rs.banner': '{n} issues have a resolution that does not match their status. Reports and dashboards count them wrongly.',
   'rs.bannerAction': 'Review & repair',
   'rs.afterFix': 'The workflow now sets the resolution for future transitions. {n} existing issues are still wrong.',
@@ -441,6 +442,13 @@ export const en2 = {
   'rs.banner1': '1 issue has a resolution that does not match its status. Reports and dashboards count it wrongly.',
   'rs.afterFix1': 'The workflow now sets the resolution for future transitions. 1 existing issue is still wrong.',
   'rs.missingChoice1': '1 selected without a resolution is skipped',
+  'rs.confirmSet': 'Set the resolution of {n} issues now? The status stays as it is. Jira cannot take a resolution back without moving the issue, so this cannot be undone here.',
+  'rs.confirmSet1': 'Set the resolution of 1 issue now? The status stays as it is. Jira cannot take a resolution back without moving the issue, so this cannot be undone here.',
+  'rs.confirmClear': 'Clear the resolution of {n} issues now? Each issue runs its workflow transition into its current status, which clears the resolution. The status stays the same, and you can undo it.',
+  'rs.confirmClear1': 'Clear the resolution of 1 issue now? It runs its workflow transition into its current status, which clears the resolution. The status stays the same, and you can undo it.',
+  'rs.noteSetAdmin': 'Only the Resolution field changes: the status stays, no notification mails are sent, and the change appears in the issue history. Check the choices first – Jira cannot take a resolution back without moving the issue.',
+  'rs.noteSetProject': 'Only the Resolution field changes. As a project admin this works when the Resolution field is on the edit screen; Jira may send notification mails. A Jira admin can repair any issue silently. Jira cannot take a resolution back without moving the issue.',
+  'rs.noteClear': 'Jira cannot clear a resolution by editing the issue. The app runs the workflow\'s own transition into each issue\'s current status, which clears it: the status stays the same, Jira records the transition and may send notifications. Issues without such a transition are reported.',
 };
 
 export const de2 = {
@@ -857,6 +865,7 @@ export const de2 = {
   'rs.err.NO_PERMISSION': 'Sie dürfen diesen Vorgang nicht bearbeiten.',
   'rs.err.NOT_FOUND': 'Der Vorgang existiert nicht mehr oder ist für Sie nicht sichtbar.',
   'rs.err.OUT_OF_SCOPE': 'Der Vorgang gehört zu einem anderen Projekt.',
+  'rs.err.CANNOT_CLEAR': 'Jira kann eine Lösung nicht direkt leeren, und keine Transition in den Status dieses Vorgangs leert sie. Den Vorgang aus dem Status heraus und zurück bewegen, um sie zu leeren.',
   'rs.banner': '{n} Vorgänge haben eine Lösung, die nicht zu ihrem Status passt. Berichte und Dashboards zählen sie falsch.',
   'rs.bannerAction': 'Prüfen & reparieren',
   'rs.afterFix': 'Der Workflow setzt die Lösung jetzt für künftige Transitionen. {n} vorhandene Vorgänge sind noch falsch.',
@@ -870,4 +879,11 @@ export const de2 = {
   'rs.banner1': '1 Vorgang hat eine Lösung, die nicht zu seinem Status passt. Berichte und Dashboards zählen ihn falsch.',
   'rs.afterFix1': 'Der Workflow setzt die Lösung jetzt für künftige Transitionen. 1 vorhandener Vorgang ist noch falsch.',
   'rs.missingChoice1': '1 ausgewählter ohne Lösung wird übersprungen',
+  'rs.confirmSet': 'Lösung von {n} Vorgängen jetzt setzen? Der Status bleibt unverändert. Jira kann eine Lösung nicht zurücknehmen, ohne den Vorgang zu verschieben – das lässt sich hier nicht rückgängig machen.',
+  'rs.confirmSet1': 'Lösung von 1 Vorgang jetzt setzen? Der Status bleibt unverändert. Jira kann eine Lösung nicht zurücknehmen, ohne den Vorgang zu verschieben – das lässt sich hier nicht rückgängig machen.',
+  'rs.confirmClear': 'Lösung von {n} Vorgängen jetzt leeren? Jeder Vorgang durchläuft die Workflow-Transition in seinen aktuellen Status, die die Lösung leert. Der Status bleibt gleich, und Sie können es rückgängig machen.',
+  'rs.confirmClear1': 'Lösung von 1 Vorgang jetzt leeren? Er durchläuft die Workflow-Transition in seinen aktuellen Status, die die Lösung leert. Der Status bleibt gleich, und Sie können es rückgängig machen.',
+  'rs.noteSetAdmin': 'Nur das Feld Lösung ändert sich: Der Status bleibt, es werden keine Benachrichtigungen versendet, und die Änderung steht in der Vorgangshistorie. Auswahl vorher prüfen – Jira kann eine Lösung nicht zurücknehmen, ohne den Vorgang zu verschieben.',
+  'rs.noteSetProject': 'Nur das Feld Lösung ändert sich. Als Projektadmin klappt das, wenn das Feld Lösung auf der Bearbeiten-Maske ist; Jira versendet ggf. Benachrichtigungen. Ein Jira-Admin kann jeden Vorgang ohne Benachrichtigung reparieren. Jira kann eine Lösung nicht zurücknehmen, ohne den Vorgang zu verschieben.',
+  'rs.noteClear': 'Jira kann eine Lösung nicht durch Bearbeiten des Vorgangs leeren. Die App führt die Workflow-Transition in den aktuellen Status des Vorgangs aus, die sie leert: Der Status bleibt gleich, Jira protokolliert die Transition und versendet ggf. Benachrichtigungen. Vorgänge ohne eine solche Transition werden gemeldet.',
 };

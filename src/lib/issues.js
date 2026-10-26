@@ -76,10 +76,42 @@ function cleanItems(items) {
 
 function describeError(e) {
   const text = String(e?.message || e);
+  if (e?.code === 'CANNOT_CLEAR') return { code: 'CANNOT_CLEAR', message: text };
   if (e?.status === 404) return { code: 'NOT_FOUND', message: text };
   if (e?.status === 403 || e?.status === 401) return { code: 'NO_PERMISSION', message: text };
   if (/resolution/i.test(text) && /screen|cannot be set|not on the appropriate/i.test(text)) return { code: 'NOT_ON_SCREEN', message: text };
   return { code: 'FAILED', message: text.slice(0, 300) };
+}
+
+// Clearing: live Jira Cloud rejects {"fields":{"resolution":null}} with "Specify the Resolution (id or name) in the
+// string format" (superportdev, 2026-10-26). Each shape is tried in turn; Jira rejects a wrong one with a 400 and changes
+// nothing, so trying the next is safe. The shape that worked is remembered for the rest of the invocation.
+export const CLEAR_BODIES = [
+  { update: { resolution: [{ set: null }] } },
+  { fields: { resolution: null } },
+  { fields: { resolution: { id: null } } },
+  { fields: { resolution: { name: null } } },
+];
+let clearShape = 0;
+const shapeRejected = (e) => e?.status === 400 && /resolution/i.test(String(e?.message || '')) && !/screen|cannot be set|not on the appropriate/i.test(String(e?.message || ''));
+
+async function writeResolution(path, to) {
+  if (to) return jira(path, { method: 'PUT', asUser: true, body: { fields: { resolution: { id: to } } } });
+  let last = null;
+  for (let k = 0; k < CLEAR_BODIES.length; k++) {
+    const i = (clearShape + k) % CLEAR_BODIES.length;
+    try {
+      await jira(path, { method: 'PUT', asUser: true, body: CLEAR_BODIES[i] });
+      clearShape = i;
+      return null;
+    } catch (e) {
+      if (!shapeRejected(e)) throw e;
+      last = e;
+    }
+  }
+  const err = new Error(`Jira cannot clear the resolution in place and no transition into this status clears it: ${String(last?.message || '').slice(0, 200)}`);
+  err.code = 'CANNOT_CLEAR';
+  throw err;
 }
 
 /**
@@ -88,18 +120,43 @@ function describeError(e) {
  * edit, and undo is the same call with from/to swapped. The issue's status is never changed.
  * projectKey: issues must belong to this project (project page); null on the site page (Jira admins).
  */
-export async function repairResolutions({ projectKey, items, admin }) {
+/**
+ * Clear through the workflow: run a transition into the issue's own status whose post function clears the
+ * resolution (see clearingSelfTransitions). Jira records the transition and may send its event's notifications.
+ * Returns false when no such transition is available to the user for this issue.
+ */
+async function clearByTransition(key, cur, clearing) {
+  const candidates = clearing?.[`${cur?.fields?.issuetype?.id}|${cur?.fields?.status?.id}`];
+  if (!candidates?.length) return false;
+  const res = await jira(route`/rest/api/3/issue/${key}/transitions`, { asUser: true });
+  const t = (res?.transitions || []).find((x) => candidates.includes(String(x.id)) && String(x.to?.id) === String(cur.fields.status.id));
+  if (!t) return false;
+  await jira(route`/rest/api/3/issue/${key}/transitions`, { method: 'POST', asUser: true, body: { transition: { id: String(t.id) } } });
+  const after = await jira(route`/rest/api/3/issue/${key}?fields=resolution,status`, { asUser: true });
+  if (after?.fields?.resolution) throw Object.assign(new Error(`Transition "${t.name}" ran but did not clear the resolution`), { code: 'CANNOT_CLEAR' });
+  return t.name || true;
+}
+
+/**
+ * clearing: clearingSelfTransitions() of the project's workflows (project page) – the reliable way to clear a
+ * resolution on Jira Cloud. Without it (site page) only the edit API is tried.
+ */
+export async function repairResolutions({ projectKey, items, admin, clearing = null }) {
   const list = cleanItems(items);
   if (list.length > BATCH) throw new Error(`At most ${BATCH} issues per call`);
   const one = async (it) => {
     try {
-      const cur = await jira(route`/rest/api/3/issue/${it.key}?fields=resolution,status,project`, { asUser: true });
+      const cur = await jira(route`/rest/api/3/issue/${it.key}?fields=resolution,status,project,issuetype`, { asUser: true });
       if (projectKey && cur?.fields?.project?.key !== projectKey) return { ...it, status: 'failed', code: 'OUT_OF_SCOPE', message: `${it.key} is not in project ${projectKey}` };
       const now = cur?.fields?.resolution ? String(cur.fields.resolution.id) : null;
       if (now === it.to) return { ...it, status: 'skipped', code: 'ALREADY_DONE' };
       if (now !== it.from) return { ...it, status: 'skipped', code: 'CHANGED', current: now };
+      if (!it.to) {
+        const via = await clearByTransition(it.key, cur, clearing);
+        if (via) return { ...it, status: 'repaired', via: typeof via === 'string' ? via : 'transition' };
+      }
       const path = admin ? route`/rest/api/3/issue/${it.key}?notifyUsers=false&overrideScreenSecurity=true` : route`/rest/api/3/issue/${it.key}`;
-      await jira(path, { method: 'PUT', asUser: true, body: { fields: { resolution: it.to ? { id: it.to } : null } } });
+      await writeResolution(path, it.to);
       return { ...it, status: 'repaired' };
     } catch (e) {
       return { ...it, status: 'failed', ...describeError(e) };
@@ -121,7 +178,10 @@ export async function repairResolutions({ projectKey, items, admin }) {
 const logKey = (scope) => `resfix-${String(scope).replace(/[^A-Za-z0-9_-]/g, '_')}`;
 
 export async function listRuns(scope) {
-  return (await kvs.get(logKey(scope))) || [];
+  const runs = (await kvs.get(logKey(scope))) || [];
+  // An undo that restored nothing (all failed) does not count: the original run stays undoable
+  for (const r of runs) if (r.undoneBy && !runs.find((u) => u.id === r.undoneBy)?.items?.length) delete r.undoneBy;
+  return runs;
 }
 
 /** Append the repaired items of one batch to a run (created on first use). */
@@ -138,7 +198,7 @@ export async function recordRun(scope, { runId, kind, by, undoOf, results }) {
   run.failed += results.filter((r) => r.status === 'failed').length;
   run.skipped += results.filter((r) => r.status === 'skipped').length;
   run.updatedAt = new Date().toISOString();
-  if (undoOf) {
+  if (undoOf && run.items.length) {
     const orig = runs.find((r) => r.id === undoOf);
     if (orig) orig.undoneBy = runId;
   }

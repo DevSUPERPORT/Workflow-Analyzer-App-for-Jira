@@ -207,6 +207,22 @@ export class FakeJira {
       const page = all.slice(start, start + (body.maxResults || 50));
       return { issues: page.map((i) => this.issueJson(i)), ...(start + page.length < all.length ? { nextPageToken: String(start + page.length) } : {}) };
     }
+    if ((m = /^\/rest\/api\/3\/issue\/([A-Z][A-Z0-9_]*-\d+)\/transitions$/.exec(p))) {
+      const issue = this.issues.find((i) => i.key === m[1]);
+      if (!issue) throw err(404, 'Issue does not exist or you do not have permission to see it.');
+      const wf = this.workflows.get(this.assign.get(issue.projectId)?.[issue.issueTypeId]);
+      // Like live Jira Cloud: global transitions are offered even into the issue's current status
+      const avail = (wf?.transitions || []).filter((t) => t.type === 'GLOBAL' || (t.type === 'DIRECTED' && (t.links || []).some((l) => String(l.fromStatusReference) === issue.statusId)));
+      if (method === 'GET') return { transitions: avail.map((t) => ({ id: String(t.id), name: t.name, to: { id: String(t.toStatusReference), name: this.statuses.get(String(t.toStatusReference))?.name } })) };
+      if (method === 'POST') {
+        const t = avail.find((x) => String(x.id) === String(body?.transition?.id));
+        if (!t) throw err(400, `Transition id '${body?.transition?.id}' is not valid for this issue.`);
+        issue.statusId = String(t.toStatusReference);
+        for (const a of t.actions || []) if (a.ruleKey === 'system:update-field' && a.parameters?.field === 'resolution') issue.resolution = a.parameters.value ? String(a.parameters.value) : null;
+        this.transitionsRun = [...(this.transitionsRun || []), { key: issue.key, id: String(t.id) }];
+        return respond(204, null);
+      }
+    }
     if ((m = /^\/rest\/api\/3\/issue\/([A-Z][A-Z0-9_]*-\d+)$/.exec(p))) {
       const issue = this.issues.find((i) => i.key === m[1]);
       if (!issue || (asUser && this.hiddenFromUser?.has(issue.projectId))) throw err(404, 'Issue does not exist or you do not have permission to see it.');
@@ -214,6 +230,10 @@ export class FakeJira {
       if (method === 'PUT') {
         const override = q.get('overrideScreenSecurity') === 'true';
         if ((override || q.get('notifyUsers') === 'false') && !this.perms.ADMINISTER) throw err(403, 'Connect app users with "admin" permission and Forge apps acting on behalf of users with ADMINISTER permission can override screen security.');
+        // Live superportdev 2026-10-26: the edit API cannot clear a resolution – null, {id:null}, {name:null} and
+        // "update … set: null" are all rejected (only a transition with a clearing post function clears it)
+        const clears = Array.isArray(body.update?.resolution) || ('resolution' in (body.fields || {}) && (body.fields.resolution == null || (body.fields.resolution.id == null && body.fields.resolution.name == null)));
+        if (clears) throw err(400, '{"errorMessages":[],"errors":{"resolution":"Specify the Resolution (id or name) in the string format"}}');
         if ('resolution' in (body.fields || {})) {
           if (!override && !this.resolutionOnEditScreen) throw err(400, "Field 'resolution' cannot be set. It is not on the appropriate screen, or unknown.");
           const r = body.fields.resolution;
@@ -231,7 +251,7 @@ export class FakeJira {
     const st = this.statuses.get(i.statusId);
     const pr = this.projects.find((x) => x.id === i.projectId);
     const res = i.resolution ? this.resolutions.find((r) => r.id === i.resolution) : null;
-    return { key: i.key, fields: { summary: i.summary, updated: i.updated, project: { key: pr.key, name: pr.name }, issuetype: { name: pr.issueTypes.find((t) => t.id === i.issueTypeId)?.name || 'Task' }, status: { id: st.id, name: st.name, statusCategory: { key: st.statusCategory === 'DONE' ? 'done' : st.statusCategory === 'TODO' ? 'new' : 'indeterminate' } }, resolution: res ? { id: res.id, name: res.name } : null } };
+    return { key: i.key, fields: { summary: i.summary, updated: i.updated, project: { key: pr.key, name: pr.name }, issuetype: { id: String(i.issueTypeId), name: pr.issueTypes.find((t) => t.id === i.issueTypeId)?.name || 'Task' }, status: { id: st.id, name: st.name, statusCategory: { key: st.statusCategory === 'DONE' ? 'done' : st.statusCategory === 'TODO' ? 'new' : 'indeterminate' } }, resolution: res ? { id: res.id, name: res.name } : null } };
   }
 
   // ------------------------------------------------------------- workflow update rules

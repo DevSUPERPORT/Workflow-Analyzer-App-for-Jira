@@ -476,6 +476,33 @@ export function healthScore(findings, transitions = 1) {
 
 // ---------------------------------------------------------------- health checks
 
+/** What a transition's post functions do with the resolution. "Update field: Resolution" with an empty value clears it. */
+export function resolutionEffect(t) {
+  const rules = t.postFunctions.filter((r) => /resolution/i.test(String(r.params.field || r.params.targetFieldKey || '')) || r.refs.some((x) => x.type === 'field' && x.id === 'resolution'));
+  const clearsValue = (r) => r.ruleKey === 'system:update-field' && (r.params.value == null || String(r.params.value).trim() === '');
+  return { rules, sets: rules.some((r) => !clearsValue(r)), clears: rules.some(clearsValue) };
+}
+
+/**
+ * Transitions that clear the resolution without leaving the status: "<issueTypeId>|<statusId>" → transition IDs.
+ * Jira Cloud cannot clear a resolution by editing the issue, but it offers global transitions into the issue's own
+ * status – one whose post function clears the resolution does exactly that (company-managed workflows only).
+ */
+export function clearingSelfTransitions(model) {
+  const out = {};
+  for (const wf of model.workflows) {
+    if (wf.scope === 'PROJECT') continue;
+    for (const t of wf.transitions) {
+      if (!t.to?.id || t.isInitial) continue;
+      const self = t.isGlobal || t.from.some((f) => f.id === t.to.id);
+      const eff = resolutionEffect(t);
+      if (!self || !eff.clears || eff.sets) continue;
+      for (const it of wf.issueTypes) (out[`${it.id}|${t.to.id}`] ||= []).push(String(t.id));
+    }
+  }
+  return out;
+}
+
 export function runHealthChecks(model) {
   const findings = [];
   let n = 0;
@@ -518,11 +545,7 @@ export function runHealthChecks(model) {
       const rules = allRules(t);
       const toDone = t.to && statusByRef.get(t.to.ref)?.category === 'DONE';
       const fromDone = t.from.length > 0 && t.from.every((f) => statusByRef.get(f.ref)?.category === 'DONE');
-      // "Update field: Resolution" with an empty value clears the resolution – it does not set one
-      const resolutionRules = t.postFunctions.filter((r) => /resolution/i.test(String(r.params.field || r.params.targetFieldKey || '')) || r.refs.some((x) => x.type === 'field' && x.id === 'resolution'));
-      const clearsValue = (r) => r.ruleKey === 'system:update-field' && (r.params.value == null || String(r.params.value).trim() === '');
-      const setsResolution = resolutionRules.some((r) => !clearsValue(r));
-      const clearsResolution = resolutionRules.some(clearsValue);
+      const { rules: resolutionRules, sets: setsResolution, clears: clearsResolution } = resolutionEffect(t);
 
       // Team-managed spaces set/clear the resolution automatically on Done statuses (and reject
       // "update field" rules for it), so resolution findings only apply to company-managed workflows.
