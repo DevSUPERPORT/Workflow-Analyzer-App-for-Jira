@@ -1,5 +1,15 @@
-// Bulk Autopilot: one change set for many workflows (site-wide). The client drives the work in
-// small batches (Forge resolver time limit): create → plan batches → apply one by one → rollback.
+/**
+ * Bulk Autopilot: one change set for many workflows (site-wide, Jira admins). The client drives the work in
+ * small batches because of the Forge resolver time limit: create, plan batches, apply one by one, roll back per
+ * workflow.
+ *
+ * @file        src/lib/bulk.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 import { kvs } from '@forge/kvs';
 import * as plans from './plans.js';

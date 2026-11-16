@@ -1,4 +1,15 @@
-// Issue resolution check and repair, end to end through the real resolvers against FakeJira.
+/**
+ * Issue resolution check and repair, end to end through the real resolvers against FakeJira: counts, listing,
+ * compare-and-set repairs, clearing via self-transitions, undo runs, permissions and the Rovo action.
+ *
+ * @file        tests/resolutions.e2e.test.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { state, scenario, ok, call, ctxProject, ctxSite, app } from './support/harness.js';
@@ -111,7 +122,9 @@ test('hostile and oversized input is rejected or ignored', async () => {
   assert.equal((await call('resolutionRepair', { items: many, runId: 'run000009' })).ok, false);
   assert.equal((await call('resolutionAudit', { projectKey: 'x" OR 1=1' }, ctxSite())).ok, false);
   assert.equal((await call('resolutionRepair', { items: [], runId: '../../etc' })).ok, true, 'empty batch is fine');
-  assert.equal(state.kvs.has('resfix-p-100'), true);
+  // Nothing was repaired or failed, so no "Repair of 0 issues" entry lands in the history; no key escapes the scope
+  assert.equal(state.kvs.has('resfix-p-100'), false, 'a run that changed nothing is not logged');
+  assert.ok(![...state.kvs.keys()].some((k) => k.includes('..') || k.includes('etc')), 'hostile run IDs never become storage keys');
 });
 
 test('a repair failing mid-batch reports per issue and keeps the others', async () => {

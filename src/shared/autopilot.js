@@ -1,8 +1,17 @@
-// Workflow Autopilot: structured change operations on raw Jira workflow JSON (new workflow API),
-// dry-run analysis (diff + health impact), update payload builder and auto-fix generation.
-//
-// Operations are produced by humans (templates/UI), by the in-app Copilot (Forge LLM tool call)
-// or by the Rovo agent. They are always validated and dry-run before anything is applied.
+/**
+ * Workflow Autopilot engine: structured change operations on raw Jira workflow JSON (new workflow API), dry-run
+ * analysis with diff and health impact, the update payload builder and auto-fix generation.
+ *
+ * Operations are produced by humans (templates/UI), by the in-app Copilot (Forge LLM tool call) or by the Rovo
+ * agent. They are always validated and dry-run before anything is applied.
+ *
+ * @file        src/shared/autopilot.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 import { normalize, SYSTEM_EVENTS, GENERIC_EVENT_ID } from './engine.js';
 import { makeSnapshot, diffSnapshots } from './snapshot.js';

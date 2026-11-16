@@ -1,7 +1,24 @@
-// In-app AI (Forge LLMs – Claude, runs on Atlassian). Works without Rovo.
+/**
+ * In-app AI on Forge LLMs (Claude, runs on Atlassian), so the Copilot works without Rovo. Picks the best
+ * available model, answers questions about a workflow and turns a plain-language request into Autopilot
+ * operations via a JSON tool schema. Every call passes SUPERPORT's AI budget (Forge variable AI_BUDGET, set through
+ * App Status: stop and monthly limits, lib/aiBudget.js), the per-site AI switch (off by default, Jira admins turn it
+ * on) and the monthly Forge LLM quota first, and is counted afterwards.
+ *
+ * @file        src/lib/ai.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-16
+ */
 
 import { chat, list } from '@forge/llm';
 import { OPS_JSON_SCHEMA, opsDocumentation } from '../shared/autopilot.js';
+import { t, normalizeLang } from '../shared/i18n.js';
+import { getAiSettings, getLlmUsage, addLlmUsage, usageMonth } from './store.js';
+import { aiBudget, effectiveCaps, hasSiteCaps } from './aiBudget.js';
+import { siteHost } from './jira.js';
 
 const PREFERRED = ['claude-sonnet-5', 'claude-opus-5', 'claude-sonnet-4-6', 'claude-opus-4-6', 'claude-sonnet-4-5-20250929', 'claude-sonnet-4-20250514', 'claude-haiku-4-5-20251001'];
 const NO_TEMPERATURE = /claude-(opus|sonnet)-5|claude-opus-4-[78]/;
@@ -25,7 +42,71 @@ function text(content) {
   return '';
 }
 
-async function complete(messages, extra = {}) {
+// ---------------------------------------------------------------- vendor budget, AI switch and monthly quota
+
+const MESSAGE_KEY = { AI_DISABLED: 'ai.off', AI_LIMIT: 'ai.quota', AI_STOPPED: 'ai.stopped' };
+
+/**
+ * AI_STOPPED (turned off by SUPERPORT via AI_BUDGET), AI_DISABLED (site switch off) or AI_LIMIT (monthly quota used
+ * up), with the user-facing text in the caller's language.
+ */
+export class AiError extends Error {
+  constructor(code, lang = 'en') {
+    super(t(lang, MESSAGE_KEY[code] || 'ai.off'));
+    this.code = code;
+  }
+}
+
+export const isAiError = (e) => e instanceof AiError;
+
+/**
+ * This site's caps from AI_BUDGET: { stop, callsPerMonth, tokensPerMonth }. The site host is only looked up when
+ * AI_BUDGET has per-site caps; if that lookup fails the app-wide values apply.
+ */
+export async function aiCaps(budget = aiBudget()) {
+  if (!hasSiteCaps(budget)) return effectiveCaps(budget, null);
+  let host = null;
+  try {
+    host = await siteHost();
+  } catch (e) {
+    console.warn('[ai-budget] site host unknown, app-wide limits apply:', e?.message || e);
+  }
+  return effectiveCaps(budget, host);
+}
+
+/**
+ * Throws AI_STOPPED while SUPERPORT has the AI turned off (for every site, or a cap of 0 for this one), and
+ * AI_DISABLED unless a Jira admin switched the AI features on for this site (default: off). The customer's setting
+ * is kept either way. Returns this site's caps.
+ */
+export async function requireAiEnabled(lang) {
+  const budget = aiBudget();
+  if (budget.stop) throw new AiError('AI_STOPPED', normalizeLang(lang));
+  if (!(await getAiSettings()).aiEnabled) throw new AiError('AI_DISABLED', normalizeLang(lang));
+  const caps = await aiCaps(budget);
+  if (caps.stop) throw new AiError('AI_STOPPED', normalizeLang(lang));
+  return caps;
+}
+
+/** Usage of the current month against this site's limits (for the admin settings card and the quota check). */
+export async function aiUsage(month = usageMonth(), caps = null) {
+  const c = caps || (await aiCaps());
+  const u = await getLlmUsage(month);
+  return { ...u, limits: { calls: c.callsPerMonth, tokens: c.tokensPerMonth }, exhausted: u.calls >= c.callsPerMonth || u.tokens >= c.tokensPerMonth };
+}
+
+/** prompt + completion tokens of a Forge LLM response (0 when the response reports no usage). */
+export function usageTokens(usage) {
+  if (!usage) return 0;
+  const io = (Number(usage.input_tokens ?? usage.prompt_tokens) || 0) + (Number(usage.output_tokens ?? usage.completion_tokens) || 0);
+  return io || Number(usage.total_tokens) || 0;
+}
+
+async function complete(messages, extra = {}, lang = 'en') {
+  // Gate and quota are checked before the model is called; the call is counted once it returned
+  const caps = await requireAiEnabled(lang);
+  const usage = await aiUsage(usageMonth(), caps);
+  if (usage.exhausted) throw new AiError('AI_LIMIT', normalizeLang(lang));
   const model = await pickModel();
   const req = { model, messages, max_completion_tokens: 4000, ...extra };
   if (!NO_TEMPERATURE.test(model)) req.temperature = 0.2;
@@ -40,6 +121,7 @@ async function complete(messages, extra = {}) {
     err.code = 'AI_UNAVAILABLE';
     throw err;
   }
+  await addLlmUsage(usage.month, usageTokens(res?.usage)).catch((e) => console.error('[ai] usage not recorded', e?.message || e));
   return { res, model };
 }
 
@@ -71,6 +153,7 @@ export async function aiPlan({ instructions, context, lang = 'en' }) {
       tools: [{ type: 'function', function: { name: 'propose_workflow_changes', description: 'Propose change operations for a Jira workflow', parameters: OPS_JSON_SCHEMA } }],
       tool_choice: { type: 'function', function: { name: 'propose_workflow_changes' } },
     },
+    lang,
   );
   const msg = res?.choices?.[0]?.message || {};
   const call = (msg.tool_calls || [])[0];
@@ -98,6 +181,6 @@ export async function aiAsk({ question, history = [], context, lang = 'en' }) {
   const msgs = [{ role: 'system', content: `${system}\n\nContext:\n${context}` }];
   for (const h of history.slice(-8)) if (h?.role && h?.content) msgs.push({ role: h.role === 'assistant' ? 'assistant' : 'user', content: String(h.content).slice(0, 4000) });
   msgs.push({ role: 'user', content: String(question).slice(0, 4000) });
-  const { res, model } = await complete(msgs);
+  const { res, model } = await complete(msgs, {}, lang);
   return { answer: text(res?.choices?.[0]?.message?.content), model, usage: res?.usage || null };
 }

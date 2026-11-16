@@ -1,7 +1,20 @@
+/**
+ * Guided tour dialog that walks a first-time user through the main tabs and keyboard shortcuts; remembers per
+ * browser that it was completed. While AI is effectively off, the assistant step uses a text without AI.
+ *
+ * @file        static/app/src/components/Tour.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-16
+ */
+
 import { useEffect, useRef, useState } from 'react';
 import { useT } from '../lib/i18n.jsx';
+import { useAiOn } from './common.jsx';
 import Icon from './Icon.jsx';
-import symbol from '../assets/superport-symbol-white.png';
+import appIcon from '../assets/app-icon.png';
 
 const STEPS = ['welcome', 'overview', 'transitions', 'impact', 'access', 'flow', 'health', 'assistant', 'export'];
 const KEY = 'superport.wfa.tourDone';
@@ -12,7 +25,10 @@ export function tourDone() {
 
 export default function Tour({ onClose, onGoTab, mode }) {
   const t = useT();
+  const aiOn = useAiOn();
   const steps = mode === 'site' ? STEPS.filter((s) => s !== 'flow') : STEPS;
+  // Text key of a step: the assistant step promises no AI while AI is off
+  const textKey = (s) => (s === 'assistant' && !aiOn ? 'assistantNoAi' : s);
   const [i, setI] = useState(0);
   const primary = useRef(null);
   const step = steps[i];
@@ -31,14 +47,14 @@ export default function Tour({ onClose, onGoTab, mode }) {
       <div className="drawer-backdrop" onClick={close} />
       <div className="tour" role="dialog" aria-modal="true" aria-labelledby="tour-title">
         <div className="tour-head">
-          <div className="brand-tile" style={{ width: 40, height: 40 }}><img src={symbol} alt="" style={{ width: 22, height: 22 }} /></div>
+          <img className="brand-icon" src={appIcon} alt="" width="40" height="40" />
           <div style={{ minWidth: 0 }}>
             <div className="small muted">{t('tour.title')} · {i + 1} / {steps.length}</div>
-            <h2 id="tour-title" style={{ margin: 0 }}>{t(`tour.${step}.title`)}</h2>
+            <h2 id="tour-title" style={{ margin: 0 }}>{t(`tour.${textKey(step)}.title`)}</h2>
           </div>
         </div>
         <div className="tour-body view" key={step}>
-          <p style={{ margin: 0, fontSize: 15, maxWidth: '62ch' }}>{t(`tour.${step}.text`)}</p>
+          <p style={{ margin: 0, fontSize: 15, maxWidth: '62ch' }}>{t(`tour.${textKey(step)}.text`)}</p>
           {step === 'welcome' && (
             <div className="note-box small" style={{ marginTop: 16 }}>
               <strong>{t('tour.shortcuts')}</strong>: <kbd>/</kbd> {t('tour.kSearch')} · <kbd>Alt</kbd>+<kbd>1…9</kbd> {t('tour.kTabs')} · <kbd>?</kbd> {t('tour.kHelp')} · <kbd>Esc</kbd> {t('tour.kClose')}

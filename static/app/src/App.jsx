@@ -1,10 +1,25 @@
+/**
+ * Root of the Custom UI: asks the server for the kill-switch state, boots the user's role and language, loads
+ * the project or scans the site, and hosts the header, grouped tabs, drawer, tour and toast. Shows the
+ * "temporarily unavailable" page or the read-only banner when SUPERPORT has paused the app.
+ *
+ * @file        static/app/src/App.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-16
+ */
+
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { view } from '@forge/bridge';
 import { LangContext, readStoredLang, storeLang } from './lib/i18n.jsx';
 import { t as translate, normalizeLang, formatDate } from '../../../src/shared/i18n.js';
 import { normalize, searchModel, collectRawRefs } from '../../../src/shared/engine.js';
-import { call } from './lib/api.js';
+import { call, setMaintenanceMode, onMaintenanceRefusal } from './lib/api.js';
+import { effectiveAi, fetchEffectiveAi, AI_RECHECK_MS } from './lib/aiState.js';
 import { AppContext, Skeleton } from './components/common.jsx';
+import { Unavailable, ReadonlyBanner } from './components/Maintenance.jsx';
 import Icon from './components/Icon.jsx';
 import Overview from './components/Overview.jsx';
 import Diagram from './components/Diagram.jsx';
@@ -18,23 +33,29 @@ import Access from './components/Access.jsx';
 import Autopilot from './components/Autopilot.jsx';
 import Guide from './components/Guide.jsx';
 import BulkAutopilot from './components/BulkAutopilot.jsx';
+import AiSettings from './components/AiSettings.jsx';
 import Flow from './components/Flow.jsx';
 import Compare from './components/Compare.jsx';
 import Remediate from './components/Remediate.jsx';
 import Resolutions from './components/Resolutions.jsx';
 import Tour, { tourDone } from './components/Tour.jsx';
 import { collectPrincipals, simulatePersona, personaFromSelection, findingFingerprint, findingKey } from '../../../src/shared/insights.js';
-import symbolWhite from './assets/superport-symbol-white.png';
-import symbolOrange from './assets/superport-symbol-orange.png';
+import appIcon from './assets/app-icon.png';
 
 const SITE_LIMIT = 600;
+const STATUS_PAGE_URL = 'https://superapps.statuspage.io';
 const NO_CAPS = { role: 'none', jiraAdmin: false, projectAdmin: false, changeShared: false, changeProjectScoped: false, createTasks: false, bulk: false };
 
 export default function App() {
   const [ctx, setCtx] = useState(null);
   const [boot, setBoot] = useState(null);
+  // Effective AI state from bootstrap: on only when the site's switch is on and the vendor has not stopped the AI
+  // (server: ai-settings && !AI_BUDGET stop). Off by default and on any error; while off, no AI control is shown.
+  const [aiOn, setAiOn] = useState(false);
+  const [aiStopped, setAiStopped] = useState(false);
   const [lang, setLangState] = useState(() => readStoredLang() || 'en');
-  const [phase, setPhase] = useState('boot'); // boot | forbidden | loading | ready | error | site-start | scanning
+  const [phase, setPhase] = useState('boot'); // boot | forbidden | loading | ready | error | site-start | scanning | unavailable
+  const [maint, setMaint] = useState({ mode: 'off', statusUrl: STATUS_PAGE_URL }); // SUPERPORT kill switch, from the server
   const [progress, setProgress] = useState(null);
   const [error, setError] = useState(null);
   const [bundle, setBundle] = useState(null);
@@ -72,6 +93,28 @@ export default function App() {
     toast.timer = setTimeout(() => setToastMsg(null), action ? 9000 : 3600);
   }, []);
 
+  // Kill switch: the server refused a call because SUPERPORT paused changes (toast) or took the app down
+  // (full-page notice). Registered before start-up so the very first refusal is handled too.
+  const tRef = useRef(t);
+  tRef.current = t;
+  useEffect(() => {
+    onMaintenanceRefusal((e, _name, background) => {
+      setMaintenanceMode(e.mode);
+      setMaint((m) => ({ ...m, mode: e.mode }));
+      if (e.mode === 'on') {
+        setBundle(null);
+        setDrawer(null);
+        setTourOpen(false);
+        setRemFindings(null);
+        setPhase('unavailable');
+        return tRef.current('maint.title');
+      }
+      if (!background) toast(tRef.current('maint.readonlyToast'));
+      return tRef.current('maint.readonlyToast');
+    });
+    return () => onMaintenanceRefusal(null);
+  }, [toast]);
+
   const setLang = (l) => {
     setLangState(l);
     storeLang(l);
@@ -93,6 +136,7 @@ export default function App() {
       call('getRemediation').then(setRemediation).catch(() => {});
       if (!tourDone() && !bootRef.current?.prefs?.tourDone) setTourOpen(true);
     } catch (e) {
+      if (e?.code === 'UNAVAILABLE') return; // the kill-switch handler has already switched the page
       setError(e);
       setPhase(e.code?.startsWith('FORBIDDEN') ? 'forbidden' : 'error');
     } finally {
@@ -134,13 +178,14 @@ export default function App() {
       setNotes(n || {});
       setPhase('ready');
     } catch (e) {
+      if (e?.code === 'UNAVAILABLE') return; // the kill-switch handler has already switched the page
       setError(e);
       setPhase(e.code?.startsWith('FORBIDDEN') ? 'forbidden' : 'error');
     }
   }, [lang]);
 
-  // Start-up: theme, context and the user's role. The bridge handshake with Jira can time out when the page is
-  // opened in a background tab or a slow host, so it is retried before an error is shown.
+  // Start-up: theme, context, the kill switch and the user's role. The bridge handshake with Jira can time out when
+  // the page is opened in a background tab or a slow host, so it is retried before an error is shown.
   const start = useCallback(async () => {
     setPhase('boot');
     setError(null);
@@ -148,9 +193,22 @@ export default function App() {
     let lastError = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const [c, b] = await Promise.all([view.getContext(), call('bootstrap')]);
+        // Ask the server first whether SUPERPORT has paused or taken down the app, before loading anything
+        const [c, av] = await Promise.all([view.getContext(), call('availability')]);
         setCtx(c);
+        setMaintenanceMode(av.mode);
+        setMaint({ mode: av.mode, statusUrl: av.statusUrl || STATUS_PAGE_URL });
+        if (av.mode === 'on') {
+          const l = readStoredLang() || normalizeLang(c.locale);
+          setLangState(l);
+          document.documentElement.lang = l;
+          return setPhase('unavailable');
+        }
+        const b = await call('bootstrap');
         setBoot(b);
+        const aiState = effectiveAi(b);
+        setAiOn(aiState.enabled);
+        setAiStopped(aiState.stopped);
         bootRef.current = b;
         const l = readStoredLang() || b.prefs?.lang || normalizeLang(b.user?.locale || c.locale);
         setLangState(l);
@@ -160,6 +218,7 @@ export default function App() {
         if (b.mode === 'site') return setPhase('site-start');
         return loadProject();
       } catch (e) {
+        if (e?.code === 'UNAVAILABLE') return setPhase('unavailable');
         lastError = e;
         if (e?.code?.startsWith?.('FORBIDDEN')) break;
         await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
@@ -170,6 +229,28 @@ export default function App() {
   }, [loadProject]);
 
   useEffect(() => { start(); }, [start]);
+
+  // A Jira admin may turn the AI on or off on the site page (or the vendor may stop it) while this page stays open:
+  // re-check the effective state when the page gets focus or becomes visible again (at most every 15 s). An error
+  // counts as off, like at start-up.
+  const aiCheckedAt = useRef(0);
+  useEffect(() => {
+    if (!boot) return undefined;
+    aiCheckedAt.current = Date.now();
+    const recheck = async () => {
+      if (document.visibilityState === 'hidden' || Date.now() - aiCheckedAt.current < AI_RECHECK_MS) return;
+      aiCheckedAt.current = Date.now();
+      const next = await fetchEffectiveAi(() => call('bootstrap'));
+      setAiOn(next.enabled);
+      setAiStopped(next.stopped);
+    };
+    window.addEventListener('focus', recheck);
+    document.addEventListener('visibilitychange', recheck);
+    return () => {
+      window.removeEventListener('focus', recheck);
+      document.removeEventListener('visibilitychange', recheck);
+    };
+  }, [boot]);
 
   const model = useMemo(() => (bundle ? normalize(bundle) : null), [bundle]);
   const allWorkflows = model?.workflows || [];
@@ -196,7 +277,8 @@ export default function App() {
   useEffect(() => { if (model) fetchResAudit(); }, [model, fetchResAudit]);
   const resWrong = resAudit ? resAudit.doneUnresolved + resAudit.openResolved : 0;
 
-  const askRovo = (prompt) => openRovo(prompt).catch(() => toast(t('app.rovoUnavailable')));
+  // No Rovo hand-off while AI is off (every such button is hidden then; the Rovo actions refuse on the server too)
+  const askRovo = (prompt) => (aiOn ? openRovo(prompt).catch(() => toast(t('app.rovoUnavailable'))) : Promise.resolve(false));
 
   // Sticky toolbars sit under the nav, whose height changes when it wraps. A callback ref attaches the observer
   // exactly when the nav mounts. --nav-h only positions elements BELOW the nav; nothing inside the nav may use
@@ -263,6 +345,11 @@ export default function App() {
       if (s?.tab && tabsRef.current.includes(s.tab)) setTab(s.tab);
     } catch { /* storage unavailable: start on the overview */ }
   }, [model, placeKey]);
+  // A new tab starts at the top; layout effect so views can still scroll to a target afterwards
+  useLayoutEffect(() => {
+    const root = document.getElementById('root');
+    if (root?.scrollTop) root.scrollTo({ top: 0, behavior: 'instant' });
+  }, [tab]);
   useEffect(() => {
     if (!placeKey || !placeRestored.current) return;
     try { window.localStorage.setItem(placeKey, JSON.stringify({ tab, wfSel })); } catch { /* not essential */ }
@@ -345,8 +432,9 @@ export default function App() {
   };
 
   // ---------------------------------------------------------------- render
-  const site = boot?.mode === 'site';
-  const project = model?.project || boot?.project || null;
+  // Before bootstrap (e.g. while the app is unavailable) the Forge context still says which page this is
+  const site = boot ? boot.mode === 'site' : String(ctx?.moduleKey || '').endsWith('workflow-analyzer-admin');
+  const project = model?.project || boot?.project || ctx?.extension?.project || null;
   const tabGroups = [
     [
       ['overview', t('tab.overview'), 'layers'],
@@ -358,7 +446,7 @@ export default function App() {
       ['health', t('tab.health'), 'pulse', model?.stats.findings.high, model?.stats.findings.high > 0],
     ],
     [
-      site ? ['bulk', t('tab.bulk'), 'sparkle'] : ['autopilot', 'Autopilot', 'sparkle'],
+      site ? ['bulk', t('tab.bulk'), aiOn ? 'sparkle' : 'layers'] : ['autopilot', 'Autopilot', aiOn ? 'sparkle' : 'wand'],
       ...(site ? [] : [['changes', t('tab.changes'), 'history']]),
     ],
     [
@@ -367,9 +455,11 @@ export default function App() {
       ...(allWorkflows.length > 1 ? [['compare', t('tab.compare'), 'compare']] : []),
     ],
     [
-      ['assistant', t('tab.assistant'), 'message'],
+      // Without AI the tab keeps only its plain-language explanations, under a name that promises no AI
+      ['assistant', aiOn ? t('tab.assistant') : t('tab.explain'), aiOn ? 'message' : 'info'],
       ['export', t('tab.export'), 'download'],
       ['guide', t('tab.guide'), 'book'],
+      ...(site && caps.jiraAdmin ? [['settings', t('tab.settings'), 'wrench']] : []),
     ],
   ];
   const tabs = tabGroups.flat();
@@ -381,10 +471,10 @@ export default function App() {
 
   return (
     <LangContext.Provider value={lang}>
-      <AppContext.Provider value={{ model, notes, actions, caps, staticRender: false }}>
+      <AppContext.Provider value={{ model, notes, actions, caps, ai: { enabled: aiOn, stopped: aiStopped, set: setAiOn, setStopped: setAiStopped }, staticRender: false }}>
         <header className="apphead">
           <div className="head-inner">
-            <div className="brand-tile"><img src={symbolWhite} alt="SUPERPORT" /></div>
+            <img className="brand-icon" src={appIcon} alt={t('app.title')} width="44" height="44" />
             <div className="head-title">
               <nav className="crumb" aria-label={t('app.title')}>
                 <span>{t('app.title')}</span>
@@ -400,7 +490,7 @@ export default function App() {
                 if (r.tKey) return actions.openTransition(r.tKey);
                 actions.selectWorkflow(r.wfId, r.type === 'status' ? 'diagram' : 'overview');
               }} />}
-              {model && !site && (
+              {model && !site && aiOn && (
                 <button type="button" className="hbtn" onClick={() => askRovo(translate(lang, 'as.s1', { key: model.project?.key }))}>
                   <Icon name="sparkle" /><span className="hide-md">{t('app.askRovo')}</span>
                 </button>
@@ -444,11 +534,14 @@ export default function App() {
         )}
 
         <main className="page">
+          {maint.mode === 'readonly' && phase !== 'unavailable' && <ReadonlyBanner statusUrl={maint.statusUrl} t={t} />}
+          {phase === 'unavailable' && <Unavailable statusUrl={maint.statusUrl} t={t} />}
+
           {(phase === 'boot' || phase === 'loading') && <LoadingState t={t} />}
 
           {phase === 'scanning' && (
             <div className="loading" role="status">
-              <img src={symbolOrange} alt="" width="40" className="pulse-logo" />
+              <img src={appIcon} alt="" width="40" height="40" className="pulse-logo" />
               <div>{progress ? t(progress.key, progress) : t('app.loading')}</div>
               {progress?.total ? <div className="bar progress" aria-hidden="true"><span style={{ width: `${(100 * (progress.done || 0)) / progress.total}%`, animation: 'none', transition: 'width 400ms var(--ease)' }} /></div> : null}
             </div>
@@ -490,6 +583,7 @@ export default function App() {
               </div>
             </section>
           )}
+          {phase === 'site-start' && caps.jiraAdmin && <AiSettings onChange={(on, stopped) => { setAiOn(on); setAiStopped(stopped); }} style={{ maxWidth: 920, margin: '0 auto 24px' }} />}
 
           {phase === 'ready' && model && (
             <>
@@ -553,6 +647,7 @@ export default function App() {
                   {tab === 'autopilot' && <Autopilot model={model} workflows={workflows.length ? workflows : allWorkflows} allWorkflows={allWorkflows} bundle={bundle} toast={toast} intent={apIntent} reload={() => loadProject({ silent: true })} />}
                   {tab === 'changes' && <Changes model={model} toast={toast} />}
                   {tab === 'assistant' && <Assistant model={model} workflows={workflows} />}
+                  {tab === 'settings' && <AiSettings onChange={(on, stopped) => { setAiOn(on); setAiStopped(stopped); }} />}
                   {tab === 'export' && <ExportPanel model={model} workflows={workflows} allWorkflows={allWorkflows} notes={notes} toast={toast} />}
                 </div>
               )}

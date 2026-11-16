@@ -1,11 +1,27 @@
+/**
+ * Shared building blocks for every view and the static export: the app context, highlighted text, vendor, status
+ * and severity pills, rule and condition-tree views, metric tiles, the score ring, the change lifecycle rail,
+ * skeletons, empty states, the AI output label and the effective AI state (useAiOn).
+ *
+ * @file        static/app/src/components/common.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-16
+ */
+
 import { createContext, useContext, Fragment } from 'react';
 import { useT } from '../lib/i18n.jsx';
 import { vendorColor } from '../../../../src/shared/vendors.js';
 import { describeRule, ruleTitle } from '../../../../src/shared/explain.js';
 import Icon from './Icon.jsx';
+import { isAiOn } from '../lib/aiState.js';
 
-// Model + navigation actions available to every view (and to the static export render).
-export const AppContext = createContext({ model: null, notes: {}, actions: {}, caps: {}, staticRender: false });
+// Model + navigation actions available to every view (and to the static export render). `ai.enabled` is the
+// effective AI state from bootstrap (site switch on and not stopped by the vendor; off by default and on errors),
+// `ai.stopped` whether the vendor has turned the AI off; the server refuses AI requests on its own anyway.
+export const AppContext = createContext({ model: null, notes: {}, actions: {}, caps: {}, ai: { enabled: false, set: () => {} }, staticRender: false });
 export const useApp = () => useContext(AppContext);
 
 export function Hl({ text, q }) {
@@ -158,6 +174,36 @@ export function Kpi({ value, label, sub, accent, ink, onClick, title }) {
 
 export function Skeleton({ w = '100%', h = 12, r }) {
   return <span className="skel" style={{ display: 'block', width: w, height: h, borderRadius: r }} />;
+}
+
+// Visible label on every text or plan produced by Forge LLM (EULA 8.4: "Ergebnisse aus Forge LLM kennzeichnen die
+// Apps als KI-generiert"). Rovo answers are labeled by Atlassian in the Rovo chat itself.
+export function AiLabel({ style }) {
+  const t = useT();
+  return <span className="ai-label" style={style}><Icon name="sparkle" size={12} />{t('ai.generated')}</span>;
+}
+
+/**
+ * Is AI effectively on? Every AI entry point (buttons, chat, Rovo hand-offs, the AI bulk template, AI tour and
+ * guide texts) renders only when this is true – while AI is off they are hidden, not greyed out, with no notice.
+ */
+export function useAiOn() {
+  return isAiOn(useApp().ai);
+}
+
+/** User-facing text for a failed AI request; also syncs the UI when the server reports the AI as off or stopped. */
+export function aiErrorText(t, e, ai) {
+  if (e?.code === 'AI_DISABLED') {
+    ai?.set?.(false);
+    return t('ai.off');
+  }
+  if (e?.code === 'AI_STOPPED') {
+    ai?.setStopped?.(true);
+    ai?.set?.(false);
+    return t('ai.stopped');
+  }
+  if (e?.code === 'AI_LIMIT') return t('ai.quota');
+  return e?.message;
 }
 
 export function EmptyState({ icon = 'info', title, children, action }) {

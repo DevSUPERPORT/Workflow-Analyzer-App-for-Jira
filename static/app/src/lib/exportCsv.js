@@ -1,3 +1,15 @@
+/**
+ * CSV export of the transitions table for Excel (UTF-8 BOM, semicolon separator) with protection against
+ * CSV/formula injection from Jira names.
+ *
+ * @file        static/app/src/lib/exportCsv.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { t as tr } from '../../../../src/shared/i18n.js';
 import { allRules, flattenConditions } from '../../../../src/shared/engine.js';
 import { describeRule, describeConditionTree } from '../../../../src/shared/explain.js';

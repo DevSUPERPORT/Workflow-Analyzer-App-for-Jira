@@ -1,4 +1,14 @@
-// Phase 2 + Autopilot dictionary (merged into DICT by i18n.js).
+/**
+ * Second half of the English/German dictionary (access, flow, compare, Autopilot, bulk, resolutions and later
+ * features), merged into DICT by i18n.js.
+ *
+ * @file        src/shared/i18n-phase2.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-16
+ */
 
 const CODES = ['NO_INITIAL', 'DEAD_END', 'UNREACHABLE', 'DEPRECATED_STATUS', 'DUPLICATE_NAME', 'DONE_NO_RESOLUTION', 'DONE_RESOLUTION_SCREEN', 'REOPEN_KEEPS_RESOLUTION', 'DONE_CLEARS_RESOLUTION', 'DONE_GENERIC_EVENT', 'GLOBAL_UNGUARDED', 'HARDCODED_USER', 'UNRESOLVED_REF', 'INACTIVE_USER', 'LICENSE_GUARD', 'COMPLEX', 'DISABLED_RULE', 'CONFIG_UNREADABLE'];
 void CODES;
@@ -7,7 +17,7 @@ export const en2 = {
   'tab.access': 'Access',
   'tab.flow': 'Flow',
   'tab.compare': 'Compare',
-  'tab.guide': '📖 Guide',
+  'tab.guide': 'Guide',
   'tab.bulk': "Bulk Autopilot",
   'ap.status.nochange': "no change",
   'ap.status.pending': "pending",
@@ -270,6 +280,8 @@ export const en2 = {
   'tour.health.text': 'Automated review with concrete recommendations – fix it yourself, create tasks or let the Autopilot do it.',
   'tour.assistant.title': 'AI assistant & Autopilot',
   'tour.assistant.text': 'Ask questions in plain language, or describe a change – the Autopilot plans it, shows the impact and applies it after your approval, with rollback.',
+  'tour.assistantNoAi.title': 'Explanations & Autopilot',
+  'tour.assistantNoAi.text': 'Every workflow and transition explained in plain language. The Autopilot turns auto-fixes and templates into change plans, shows the impact and applies them after your approval, with rollback.',
   'tour.export.title': 'Documentation',
   'tour.export.text': 'HTML, PDF, CSV and JSON – branded, in German or English, with the familiar file names. The 📖 Guide tab explains everything step by step, including how to change workflows safely.',
 
@@ -279,14 +291,33 @@ export const en2 = {
   'ai.placeholder': 'e.g. Who can approve orders above 10k?',
   'ai.send': 'Ask',
   'ai.error': 'The AI is not available right now',
+  'ai.generated': 'AI-generated – please review',
   'ai.changeHint': 'Want to change something? Describe it to the',
   'ai.q1': 'Explain the main process in 5 bullet points.',
   'ai.q2': 'Which transitions are risky and why?',
   'ai.q3': 'Which groups control the approval steps?',
+  'ai.off': 'AI features are turned off. A Jira administrator can turn them on in the app settings.',
+  'ai.quota': 'The monthly AI quota is used up. It is available again from the 1st of next month.',
+  'ai.stopped': 'AI features are temporarily turned off by the app vendor. Please try again later.',
+  'tab.settings': 'Settings',
+  'tab.explain': 'Explanations',
+  'tt.noteFailed': 'Could not be saved',
+  'aiset.title': 'AI features',
+  'aiset.intro': 'AI chat, “Plan with AI”, Bulk “Describe (AI)” and the Rovo agent. Off by default; only Jira administrators can change this.',
+  'aiset.on': 'on',
+  'aiset.offState': 'off',
+  'aiset.enable': 'Turn on',
+  'aiset.disable': 'Turn off',
+  'aiset.usage': 'This month: {calls} / {maxCalls} AI requests · {tokens} / {maxTokens} tokens',
+  'aiset.usageHint': 'Quota per site and calendar month (UTC), set by SUPERPORT, available again from the 1st.',
+  'aiset.stopped': 'Temporarily turned off by the app vendor. Your setting is kept.',
+  'aiset.changed': 'Last changed {date} by {name}',
 
   // Autopilot
   'ap.title': 'Tell Jira what you need – Autopilot does the rest',
   'ap.intro': 'Describe the change in your own words. The Autopilot turns it into concrete workflow changes, simulates them (diff + health impact), and applies them only after your approval – with automatic backup and one-click rollback.',
+  'ap.titleNoAi': 'Change workflows safely with the Autopilot',
+  'ap.introNoAi': 'Start from "Auto-fix findings" or a template. The Autopilot turns it into concrete workflow changes, simulates them (diff + health impact), and applies them only after your approval – with automatic backup and one-click rollback.',
   'ap.placeholder': 'Describe the change with exact names, e.g. which status, which transition, which group or project role …',
   'ap.ex1': 'Add a status "Escalated" reachable from "{status}", only for the project role Administrators, with a way back',
   'ap.ex2': 'Before "{transition}" the field Due date must be filled in',
@@ -300,6 +331,7 @@ export const en2 = {
   'ap.thinking': 'Thinking …',
   'ap.plans': 'Change plans',
   'ap.noPlans': 'No plans yet. Describe a change, use a template or auto-fix the findings.',
+  'ap.noPlansNoAi': 'No plans yet. Use a template or auto-fix the findings.',
   'ap.pickPlan': 'Select a plan to review it.',
   'ap.changes': 'changes',
   'ap.fixed': 'findings fixed',
@@ -455,7 +487,7 @@ export const de2 = {
   'tab.access': 'Zugriff',
   'tab.flow': 'Fluss',
   'tab.compare': 'Vergleich',
-  'tab.guide': '📖 Anleitung',
+  'tab.guide': 'Anleitung',
   'tab.bulk': "Bulk-Autopilot",
   'ap.status.nochange': "keine Änderung",
   'ap.status.pending': "ausstehend",
@@ -709,6 +741,8 @@ export const de2 = {
   'tour.health.text': 'Automatische Prüfung mit konkreten Empfehlungen – selbst beheben, Aufgaben erstellen oder den Autopilot machen lassen.',
   'tour.assistant.title': 'KI-Assistent & Autopilot',
   'tour.assistant.text': 'Fragen in natürlicher Sprache stellen oder eine Änderung beschreiben – der Autopilot plant sie, zeigt die Auswirkungen und setzt sie nach Ihrer Freigabe um, inklusive Rollback.',
+  'tour.assistantNoAi.title': 'Erklärungen & Autopilot',
+  'tour.assistantNoAi.text': 'Jeder Workflow und jede Transition in Klartext erklärt. Der Autopilot macht aus automatischen Korrekturen und Vorlagen Änderungspläne, zeigt die Auswirkungen und setzt sie nach Ihrer Freigabe um, inklusive Rollback.',
   'tour.export.title': 'Dokumentation',
   'tour.export.text': 'HTML, PDF, CSV und JSON – im Superport-Design, auf Deutsch oder Englisch, mit den gewohnten Dateinamen. Der Tab 📖 Anleitung erklärt alles Schritt für Schritt – auch, wie Sie Workflows sicher ändern.',
 
@@ -717,13 +751,32 @@ export const de2 = {
   'ai.placeholder': 'z. B. Wer darf Bestellungen über 10.000 € freigeben?',
   'ai.send': 'Fragen',
   'ai.error': 'Die KI ist gerade nicht verfügbar',
+  'ai.generated': 'KI-generiert – bitte prüfen',
   'ai.changeHint': 'Etwas ändern? Beschreiben Sie es dem',
   'ai.q1': 'Erkläre den Hauptprozess in 5 Stichpunkten.',
   'ai.q2': 'Welche Transitionen sind riskant und warum?',
   'ai.q3': 'Welche Gruppen steuern die Freigabeschritte?',
+  'ai.off': 'Die KI-Funktionen sind deaktiviert. Ein Jira-Administrator kann sie in den App-Einstellungen aktivieren.',
+  'ai.quota': 'Das monatliche KI-Kontingent ist aufgebraucht. Es steht ab dem 1. des nächsten Monats wieder zur Verfügung.',
+  'ai.stopped': 'Die KI-Funktionen sind vorübergehend vom App-Anbieter ausgeschaltet. Bitte versuchen Sie es später erneut.',
+  'tab.settings': 'Einstellungen',
+  'tab.explain': 'Erklärungen',
+  'tt.noteFailed': 'Konnte nicht gespeichert werden',
+  'aiset.title': 'KI-Funktionen',
+  'aiset.intro': 'KI-Chat, „Mit KI planen“, Bulk „Beschreiben (KI)“ und der Rovo-Agent. Standardmäßig aus; nur Jira-Administratoren können das ändern.',
+  'aiset.on': 'an',
+  'aiset.offState': 'aus',
+  'aiset.enable': 'Aktivieren',
+  'aiset.disable': 'Deaktivieren',
+  'aiset.usage': 'Diesen Monat: {calls} / {maxCalls} KI-Anfragen · {tokens} / {maxTokens} Tokens',
+  'aiset.usageHint': 'Kontingent je Site und Kalendermonat (UTC), von SUPERPORT festgelegt, ab dem 1. wieder verfügbar.',
+  'aiset.stopped': 'Vorübergehend vom App-Anbieter ausgeschaltet. Ihre Einstellung bleibt gespeichert.',
+  'aiset.changed': 'Zuletzt geändert am {date} von {name}',
 
   'ap.title': 'Sagen Sie Jira, was Sie brauchen – der Autopilot erledigt den Rest',
   'ap.intro': 'Beschreiben Sie die Änderung in eigenen Worten. Der Autopilot macht daraus konkrete Workflow-Änderungen, simuliert sie (Diff + Health-Auswirkung) und setzt sie erst nach Ihrer Freigabe um – mit automatischer Sicherung und Rollback per Klick.',
+  'ap.titleNoAi': 'Workflows sicher mit dem Autopilot ändern',
+  'ap.introNoAi': 'Starten Sie mit „Befunde automatisch beheben“ oder einer Vorlage. Der Autopilot macht daraus konkrete Workflow-Änderungen, simuliert sie (Diff + Health-Auswirkung) und setzt sie erst nach Ihrer Freigabe um – mit automatischer Sicherung und Rollback per Klick.',
   'ap.placeholder': 'Beschreiben Sie die Änderung mit genauen Namen – welcher Status, welche Transition, welche Gruppe oder Projektrolle …',
   'ap.ex1': 'Status „Eskaliert“ anlegen, erreichbar aus „{status}“, nur für die Projektrolle Administrators, mit Rückweg',
   'ap.ex2': 'Vor „{transition}“ muss das Fälligkeitsdatum ausgefüllt sein',
@@ -737,6 +790,7 @@ export const de2 = {
   'ap.thinking': 'Denkt nach …',
   'ap.plans': 'Änderungspläne',
   'ap.noPlans': 'Noch keine Pläne. Änderung beschreiben, Vorlage nutzen oder Befunde automatisch beheben.',
+  'ap.noPlansNoAi': 'Noch keine Pläne. Vorlage nutzen oder Befunde automatisch beheben.',
   'ap.pickPlan': 'Plan auswählen, um ihn zu prüfen.',
   'ap.changes': 'Änderungen',
   'ap.fixed': 'Befunde behoben',

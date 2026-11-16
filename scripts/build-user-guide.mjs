@@ -1,4 +1,15 @@
-// Generates docs/USER-GUIDE.md (DE + EN) from the in-app guide content.
+/**
+ * Generates docs/USER-GUIDE.md (German and English) from the in-app guide content in
+ * static/app/src/lib/guide-content.js.
+ *
+ * @file        scripts/build-user-guide.mjs
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import fs from 'node:fs';
 import { GUIDE } from '../static/app/src/lib/guide-content.js';
 

@@ -1,5 +1,16 @@
-/* Superport Workflow Analyzer – design system (shared by the app and the HTML export).
-   World: Superport "License Optimizer" – warm stone ground, white cards, ink, one orange. */
+/**
+ * Design system of the Workflow Analyzer, shared by the app and the HTML export: tokens for light and dark,
+ * layout, components and motion. World: Superport "License Optimizer" - warm stone ground, white cards, ink, one
+ * orange (see DESIGN.md).
+ *
+ * @file        static/app/src/styles.css
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 :root {
   /* ground & surfaces */
   --bg: #f5f4f1;
@@ -199,9 +210,8 @@ code, .code { font-family: var(--mono); font-size: 12px; background: var(--code-
 }
 .head-inner { max-width: 1400px; margin: 0 auto; padding: 20px 28px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; }
 .topbar { display: flex; align-items: center; gap: 14px; padding: 16px 24px; flex-wrap: wrap; }
-.brand-tile { width: 44px; height: 44px; border-radius: var(--r); background: #262729; display: grid; place-items: center; flex: none; }
-html[data-color-mode='dark'] .brand-tile { background: #0f0f10; box-shadow: inset 0 0 0 1px var(--border); }
-.brand-tile img { width: 26px; height: 26px; display: block; }
+/* the app icon carries its own orange tile and rounded corners */
+.brand-icon { width: 44px; height: 44px; display: block; flex: none; }
 .head-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 200px; }
 .crumb { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; min-height: 24px; }
 /* the role badge sits on the breadcrumb line so the project name keeps the full heading width */
@@ -783,10 +793,20 @@ table.tt tr.selected td { background: var(--tint-orange); }
 .starter:active { transform: scale(0.99); }
 .ai-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; color: var(--text); }
 .ai-badge .ic { color: var(--accent); }
+.ai-label { display: inline-flex; align-items: center; gap: 5px; width: fit-content; font-size: 12px; font-weight: 500; line-height: 1.4; color: var(--text); background: var(--tint-orange); padding: 2px 9px; border-radius: var(--pill); white-space: nowrap; }
+.ai-label .ic { color: var(--accent); }
 .bubble { padding: 12px 16px; border-radius: 14px; max-width: 86%; line-height: 1.55; animation: rise-in var(--t-slow) var(--ease) both; }
 .bubble.user { align-self: flex-end; background: var(--tile); color: var(--tile-text); border-bottom-right-radius: 4px; }
 .bubble.ai { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
 .bubble.error { background: var(--high-bg); border-color: transparent; }
+.md > * { margin: 0 0 8px; }
+.md > :last-child { margin-bottom: 0; }
+.md-list { padding-left: 20px; }
+.md-list li + li { margin-top: 2px; }
+.md-table { overflow-x: auto; }
+.md-table table { border-collapse: collapse; font-size: 12.5px; }
+.md-table th, .md-table td { text-align: left; vertical-align: top; padding: 5px 10px; border-bottom: 1px solid var(--border); }
+.md-table th { font-weight: 600; background: var(--surface-2); }
 .chat { display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow: auto; margin: 4px 0 14px; padding: 4px 2px; }
 .swatch { display: inline-block; width: 18px; height: 3px; border-radius: 2px; vertical-align: middle; }
 .step-no { flex: none; width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 12px; font-weight: 500; background: var(--surface-2); color: var(--text-muted); font-variant-numeric: tabular-nums; }
@@ -1005,3 +1025,22 @@ article.card, .confirm, #ap-text { scroll-margin-top: calc(var(--nav-h, 52px) + 
 .rs .table-wrap { max-height: min(560px, 62vh); overflow: auto; border: 1px solid var(--border); border-radius: var(--r); }
 .rs .table-wrap thead th { position: sticky; top: 0; z-index: 1; background: var(--surface); box-shadow: inset 0 -1px 0 var(--border); }
 .rs .rs-bar { position: static; top: auto; margin: 0; padding: 0; border: 0; background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; z-index: auto; }
+
+/* Kill switch (SUPERPORT maintenance): full-page notice when the app is down, banner while changes are paused */
+.maint { max-width: 640px; margin: 48px auto; }
+.maint .maint-body { padding: 32px 8px; }
+.maint .maint-body h2 { margin: 4px 0 0; color: var(--text); }
+.maint .maint-body p { max-width: 460px; margin: 0 0 8px; }
+.maint .maint-body .btn .ic { color: inherit; }
+.maint-mark { position: relative; display: grid; place-items: center; width: 76px; height: 76px; border-radius: 50%; background: var(--tint-orange); margin-bottom: 4px; }
+.maint .maint-mark > .ic { color: var(--accent); }
+.maint-shield { position: absolute; right: -4px; bottom: -4px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); }
+.maint .maint-shield .ic { color: var(--ok); }
+.maint-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; padding: 2px 10px 2px 8px; border-radius: 999px; background: var(--tint-amber); color: var(--text); font-size: 12px; font-weight: 500; }
+.maint-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--medium); }
+.maint-banner { align-items: center; }
+.maint-banner > .ic { margin-top: 0; }
+.maint-banner .btn { margin: -6px -6px -6px 0; }
+
+/* sentence-case headings that reuse a lower-case label key */
+.cap-first::first-letter { text-transform: uppercase; }

@@ -1,3 +1,15 @@
+/**
+ * Export tab: choose content and language and download the workflow documentation as interactive HTML, branded
+ * PDF, CSV or JSON. runExport is shared with the "export selection" action of the transitions table.
+ *
+ * @file        static/app/src/components/ExportPanel.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { useEffect, useState } from 'react';
 import { useT } from '../lib/i18n.jsx';
 import { buildHtmlExport } from '../lib/exportHtml.js';

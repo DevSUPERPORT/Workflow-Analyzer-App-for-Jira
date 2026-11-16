@@ -1,4 +1,15 @@
-// Property-based / fuzz tests: random (and malformed) workflows through every engine function.
+/**
+ * Property-based fuzz tests: thousands of random and malformed workflows and operations through every engine,
+ * insight, diagram, export and Autopilot function, asserting no crash and no invalid update payload.
+ *
+ * @file        tests/fuzz.test.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalize, searchModel, allRules } from '../src/shared/engine.js';

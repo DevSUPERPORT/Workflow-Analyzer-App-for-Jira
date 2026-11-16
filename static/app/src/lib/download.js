@@ -1,4 +1,14 @@
-// File downloads from the Custom UI iframe (sandbox allows downloads on user gesture).
+/**
+ * File downloads from the Custom UI iframe (the sandbox allows them on a user gesture), with a capture hook for
+ * mock-mode UI tests and consistent export file names.
+ *
+ * @file        static/app/src/lib/download.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 export function downloadBlob(blob, filename) {
   // Test hook (mock mode / automated UI tests): capture instead of downloading

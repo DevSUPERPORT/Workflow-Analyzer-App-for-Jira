@@ -1,3 +1,16 @@
+/**
+ * Tests for Done transitions: findings for cleared resolutions and the Generic Event, their auto-fix (resolution
+ * Done plus Issue Resolved/Closed event) in the update payload, and snapshot diffs that stay quiet for old
+ * snapshots without events.
+ *
+ * @file        tests/done-transition.test.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalize } from '../src/shared/engine.js';

@@ -1,9 +1,22 @@
+/**
+ * Site-wide bulk changes for Jira admins: pick target workflows, describe the change (templates, AI or auto-fix
+ * from the health check), then plan, validate, apply and roll back each workflow on its own with live progress.
+ * The "Describe (AI)" template is offered only while AI is effectively on (hidden otherwise, no notice).
+ *
+ * @file        static/app/src/components/BulkAutopilot.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-16
+ */
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../lib/i18n.jsx';
 import { call } from '../lib/api.js';
 import { REF_TYPES } from '../../../../src/shared/rules.js';
 import Icon from './Icon.jsx';
-import { LifecycleRail } from './common.jsx';
+import { useApp, useAiOn, LifecycleRail, AiLabel, aiErrorText } from './common.jsx';
 import { PlanStatus } from './Autopilot.jsx';
 
 const TEMPLATES = ['removeRef', 'replaceRef', 'resolutionDone', 'restrict', 'requireFields', 'ai', 'json'];
@@ -22,6 +35,8 @@ export function templateOps(tpl, f) {
 
 export default function BulkAutopilot({ model, refData, prefill, toast }) {
   const t = useT();
+  const { ai: aiSwitch } = useApp();
+  const aiOn = useAiOn();
   const [filter, setFilter] = useState('');
   const [usesType, setUsesType] = useState(prefill?.refType || 'group');
   const [usesId, setUsesId] = useState(prefill?.refId || '');
@@ -63,17 +78,21 @@ export default function BulkAutopilot({ model, refData, prefill, toast }) {
     runPlanning({ workflowIds: af.workflowIds, autofix: { fingerprints: af.fingerprints }, instructions: t('fix.siteTitle', { n: af.n }), lang: t.lang });
   }, [prefill]);
 
+  // "Describe (AI)" exists only while AI is on: when it goes off, fall back to the first template
+  useEffect(() => { if (!aiOn && tpl === 'ai') setTpl('removeRef'); }, [aiOn, tpl]);
+
   const set = (p) => setForm((x) => ({ ...x, ...p }));
-  const ops = tpl === 'json' ? safeJson(json) : tpl === 'ai' ? ai?.operations || [] : templateOps(tpl, form);
+  const ops = tpl === 'json' ? safeJson(json) : tpl === 'ai' ? (aiOn && ai?.operations) || [] : templateOps(tpl, form);
   const opsValid = Array.isArray(ops) && ops.length > 0;
 
   const planAi = async () => {
+    if (!aiOn) return;
     setBusy('ai');
     setError(null);
     try {
       const first = [...targets][0] || candidates[0]?.id;
       setAi(await call('siteBulkAi', { instructions: form.instructions, workflowId: first, lang: t.lang }));
-    } catch (e) { setError(e.message); } finally { setBusy(null); }
+    } catch (e) { setError(aiErrorText(t, e, aiSwitch)); } finally { setBusy(null); }
   };
 
   // `create` overrides what is sent to siteBulkCreate (auto-fix hand-off from the health check)
@@ -226,7 +245,7 @@ export default function BulkAutopilot({ model, refData, prefill, toast }) {
           <section className="card main" style={{ marginBottom: 0 }} aria-labelledby="bulk-change">
             <h2 id="bulk-change" style={{ fontSize: 15 }}>{t('bulkap.change')}</h2>
             <div className="row" style={{ gap: 6, marginBottom: 18 }} role="group" aria-label={t('bulkap.change')}>
-              {TEMPLATES.map((k) => <button key={k} type="button" aria-pressed={tpl === k} className={`chip ${tpl === k ? 'on' : ''}`} onClick={() => setTpl(k)}>{k === 'ai' && <Icon name="sparkle" size={13} />}{t(`bulkap.tpl.${k}`)}</button>)}
+              {TEMPLATES.filter((k) => aiOn || k !== 'ai').map((k) => <button key={k} type="button" aria-pressed={tpl === k} className={`chip ${tpl === k ? 'on' : ''}`} onClick={() => setTpl(k)}>{k === 'ai' && <Icon name="sparkle" size={13} />}{t(`bulkap.tpl.${k}`)}</button>)}
             </div>
             <div className="form-grid">
               {(tpl === 'removeRef' || tpl === 'replaceRef') && (
@@ -253,12 +272,12 @@ export default function BulkAutopilot({ model, refData, prefill, toast }) {
                 </>
               )}
             </div>
-            {tpl === 'ai' && (
+            {aiOn && tpl === 'ai' && (
               <div className="stack">
                 <label htmlFor="b-ai" className="sr-only">{t('bulkap.aiPlaceholder')}</label>
                 <textarea id="b-ai" rows={3} style={{ width: '100%' }} value={form.instructions} placeholder={t('bulkap.aiPlaceholder')} onChange={(e) => set({ instructions: e.target.value })} />
                 <div><button type="button" className={`btn primary ${busy === 'ai' ? 'busy' : ''}`} disabled={!form.instructions.trim() || !!busy} onClick={planAi}><Icon name="sparkle" />{t('ap.planCopilot')}</button></div>
-                {ai?.explanation && <div className="note-box view"><p style={{ margin: 0 }}>{ai.explanation}</p></div>}
+                {ai?.explanation && <div className="note-box view"><AiLabel style={{ marginBottom: 6 }} /><p style={{ margin: 0 }}>{ai.explanation}</p></div>}
               </div>
             )}
             {tpl === 'json' && <><label htmlFor="b-json" className="sr-only">JSON</label><textarea id="b-json" rows={6} style={{ width: '100%', fontFamily: 'var(--mono)', fontSize: 12.5 }} value={json} placeholder='[{"op":"removeReference","refType":"group","ref":"old-group"}]' onChange={(e) => setJson(e.target.value)} /></>}

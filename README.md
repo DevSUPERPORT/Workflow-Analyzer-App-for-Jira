@@ -13,7 +13,7 @@ A Jira Cloud app built on Atlassian Forge. It reads workflows live from Jira, ex
 ![Runs on Atlassian](https://img.shields.io/badge/Runs%20on-Atlassian-0B8A5F)
 ![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![Node 22+](https://img.shields.io/badge/Node-22%2B-339933?logo=node.js&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-117%20passing-2E7D32)
+![Tests](https://img.shields.io/badge/tests-127%20passing-2E7D32)
 ![Languages](https://img.shields.io/badge/UI-EN%20%7C%20DE-E34B04)
 
 </div>
@@ -82,6 +82,9 @@ The app works out each user's role on the server and never trusts the client.
 - **Project from the Forge context.** The project always comes from the Forge context, never from the payload.
 - **Checked on every call.** Every resolver checks permissions first, and every write runs `asUser`.
 - **Hostile input rejected.** IDs, storage keys and payloads are validated against hostile input and prototype pollution.
+- **AI off by default.** The AI features (AI chat, "Plan with AI", Bulk "Describe (AI)", every Rovo action) stay off until a Jira admin turns them on in the site-wide page (Settings › AI features, KVS key `ai-settings`). Only users with "Administer Jira" can change it, checked live on every change; each change is logged with who and when. While off, every AI entry point is refused on the server (`AI_DISABLED`), and the UI hides every AI entry point (no greyed-out buttons, no notice): it reads the effective flag (switch on AND no vendor stop) from `bootstrap` (`static/app/src/lib/aiState.js`, off on any error) and re-checks it when the page gets focus or becomes visible again. The Autopilot then offers auto-fix and templates only, and the "AI assistant" tab becomes "Explanations".
+- **Monthly Forge LLM quota, set by SUPERPORT.** Forge LLM usage is billed to SUPERPORT, so SUPERPORT sets the limits through its App Status app in the Forge variable `AI_BUDGET` (like `APP_MAINTENANCE`: `forge variables set` + redeploy, read only on the server, nothing a customer can change), e.g. `{"stop":false,"callsPerMonth":1000,"tokensPerMonth":2000000,"siteCaps":{"bigcorp.atlassian.net":{"callsPerMonth":5000}}}`. Unset or invalid (logged once) means the defaults in `src/lib/aiLimits.js`: 1,000 LLM calls and 2,000,000 tokens per site and calendar month (UTC). `siteCaps` are matched against the site host from `serverInfo.baseUrl` (looked up only when `siteCaps` is set); a missing field falls back to the app-wide value. Calls and tokens are counted in KVS under `llm-usage:YYYY-MM` and checked before every model call (`AI_LIMIT`). Jira admins see the usage and their site's limits next to the switch.
+- **Vendor stop.** `"stop":true` in `AI_BUDGET` (or a limit of 0 for all sites or one site) refuses every AI entry point, including every Rovo action, with `AI_STOPPED` ("AI features are temporarily turned off by the app vendor. Please try again later."), even where a Jira admin turned the AI on; the admin's setting is kept and applies again once the stop is lifted.
 - **Minimal scopes:** `read:jira-work`, `write:jira-work`, `read:jira-user`, `manage:jira-configuration`, `storage:app`.
 
 ## Architecture
@@ -143,7 +146,7 @@ scripts/                i18n check, user-guide generator
 npm install
 npm --prefix static/app install
 
-npm test                 # 100 tests: engine, fuzzing, E2E against FakeJira, adversarial, security, compatibility
+npm test                 # 135 tests: engine, fuzzing, E2E against FakeJira, adversarial, security, compatibility
 npm run check:i18n       # every translation key exists in EN and DE
 npm run dev:ui           # UI with mock data on http://localhost:5174
 ```
@@ -157,6 +160,8 @@ The mock UI simulates a full Jira. A few URL hashes switch scenarios:
 | `#forbidden` | User without access |
 | `#digest` | A previous visit, so the "since your last visit" digest shows |
 | `#shared` | Plans on a workflow shared by several projects |
+| `#ai=on` / `#ai=off` | Force the AI switch on or off (without it, the switch is stored in the mock and starts off, like on a real site) |
+| `#ai=limit` | AI on, monthly quota used up |
 
 ### Deploy to your site
 
@@ -188,6 +193,8 @@ Tests check **what Jira ends up containing**, not only what the app reports. **F
 | `fixflow.e2e` | One-click fixes, site-wide auto-fix, re-planning, the visit digest, localised messages |
 | `adversarial.e2e` | Double applies, conflicting rollbacks, injected Jira failures, hostile payloads, scale |
 | `security.e2e` | Every resolver refuses users without rights and leaves no trace; roles cannot escalate |
+| `ai-settings` | AI switch off by default, only Jira admins can change it, every AI entry point refuses while off, monthly quota and month rollover |
+| `ai-ui-gating` | The UI's effective AI flag (switch on and not stopped; off by default and on errors) and a source check that every AI entry point is hidden while AI is off |
 | `compat.e2e` | Team-managed, Service Management, 5,000+ groups, 450 projects sharing a workflow, sites without AI |
 
 ## Contributing

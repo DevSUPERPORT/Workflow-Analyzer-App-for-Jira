@@ -1,5 +1,14 @@
-// Permission checks performed as the calling user. Workflow data is read asApp,
-// so these checks are the security boundary of the app.
+/**
+ * Permission checks performed as the calling user (Jira admin, project admin, capabilities for the UI). Workflow
+ * data is read asApp, so these checks are the security boundary of the app.
+ *
+ * @file        src/lib/auth.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 import { route } from '@forge/api';
 import { jira } from './jira.js';

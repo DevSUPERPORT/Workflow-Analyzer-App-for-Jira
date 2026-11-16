@@ -1,11 +1,21 @@
-// Daily workflow monitoring (scheduledTrigger). For every project that opted in, take a
-// snapshot when the configuration changed and remember what changed – shown in the UI as
-// change timeline and "changed since your last visit" banner.
+/**
+ * Daily workflow monitoring (scheduledTrigger): for every project that opted in, takes a snapshot when the
+ * configuration changed and remembers what changed, shown in the UI as the change timeline and the "changed
+ * since your last visit" banner. Does nothing while the kill switch is on or read-only.
+ *
+ * @file        src/monitor.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 import { getProjectBundle } from './lib/jira.js';
 import * as store from './lib/store.js';
 import { normalize } from './shared/engine.js';
 import { makeSnapshot, diffSnapshots, snapshotHash } from './shared/snapshot.js';
+import { maintenanceMode } from './lib/maintenance.js';
 
 const MAX_PER_RUN = 15;
 
@@ -37,6 +47,8 @@ export async function monitorProject(project, { by = 'Workflow Analyzer (auto)' 
 }
 
 export async function monitorRun() {
+  // Kill switch: "on" stops everything; "readonly" stops it too, because every run writes snapshots.
+  if (maintenanceMode() !== 'off') return;
   const projects = await store.getMonitoredProjects();
   // Oldest-run first so large sites are covered over several days
   const states = await Promise.all(projects.map(async (p) => ({ p, s: await store.getMonitorState(p.id) })));

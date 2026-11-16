@@ -1,5 +1,16 @@
-// Adversarial end-to-end tests: cross-project access, hostile payloads, races, injected faults and scale.
-// Every test asserts on what Jira ends up containing, not only on what the app reports.
+/**
+ * Adversarial end-to-end tests: cross-project access, hostile payloads, races such as double applies and
+ * conflicting rollbacks, injected Jira faults and scale. Every test asserts on what Jira ends up containing, not
+ * only on what the app reports.
+ *
+ * @file        tests/adversarial.e2e.test.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { state, app, G, scenario, ctxProject, ctxSite, call, ok, shape } from './support/harness.js';
@@ -280,4 +291,13 @@ test('rollback after a status removal does not falsely report a colleague change
   const rolled = await call('rollbackPlan', { id: plan.id });
   assert.equal(rolled.ok, true, JSON.stringify(rolled));
   assert.ok(j.workflows.get('wf-1').statuses.some((s) => s.statusReference === S.archived));
+});
+
+test('Jira validation messages name the status or transition they are about', async () => {
+  const { jiraValidationMessage } = await import('../src/lib/plans.js');
+  const payload = { statuses: [{ statusReference: 's-9', name: 'WFA Archiv' }], workflows: [{ transitions: [{ id: '81', name: 'GB OK' }] }] };
+  assert.equal(jiraValidationMessage({ message: 'This status cannot be reached from the start of the workflow.', elementReference: { statusReference: 's-9' } }, payload), '"WFA Archiv": This status cannot be reached from the start of the workflow.');
+  assert.equal(jiraValidationMessage({ message: 'Invalid rule', elementReference: { transitionId: 81, ruleId: 'r1' } }, payload), '"GB OK": Invalid rule (r1)');
+  assert.equal(jiraValidationMessage({ message: 'Plain message' }, payload), 'Plain message');
+  assert.equal(jiraValidationMessage({ message: 'Unknown', elementReference: { statusReference: 'nope' } }, null), 'Unknown');
 });

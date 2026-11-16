@@ -1,3 +1,15 @@
+/**
+ * Builds the single-file interactive HTML export (Confluence-ready): renders ExportDocument to static markup,
+ * inlines the app stylesheet and adds a small script for collapsible sections, search and filters.
+ *
+ * @file        static/app/src/lib/exportHtml.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';
 import css from '../styles.css?raw';

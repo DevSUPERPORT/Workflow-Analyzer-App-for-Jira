@@ -1,5 +1,16 @@
-// End-to-end tests for the "insight to fix" flows: one-click fixes for chosen findings, re-planning stale
-// plans and plan messages in the planner's language. Assertions are made on what Jira ends up containing.
+/**
+ * End-to-end tests for the "insight to fix" flows: one-click fixes for chosen findings, site-wide auto-fix,
+ * re-planning stale plans, the visit digest and plan messages in the planner's language. Assertions are made on
+ * what Jira ends up containing.
+ *
+ * @file        tests/fixflow.e2e.test.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { state, scenario, ctxProject, ctxSite, call, ok, shape, normalize } from './support/harness.js';

@@ -1,4 +1,15 @@
-// English / German dictionary shared by UI, exports, explanations and the Rovo agent.
+/**
+ * English/German dictionary shared by the UI, exports, explanations and the Rovo agent, plus the translate,
+ * date-format and finding-text helpers. Every user-facing string, including the kill-switch notices, lives here
+ * in both languages.
+ *
+ * @file        src/shared/i18n.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 import { en2, de2 } from './i18n-phase2.js';
 
@@ -6,7 +17,7 @@ export const LANGS = ['en', 'de'];
 
 const en = {
   // App chrome
-  'app.title': 'Workflow Analyzer',
+  'app.title': 'Workflow Analyzer for Jira',
   'app.tag': 'Workflow Analyzer',
   'app.subtitleProject': 'Project {key} · {name}',
   'app.subtitleSite': 'Site-wide analysis · all workflows',
@@ -25,10 +36,19 @@ const en = {
   'app.searchNoResults': 'No matches.',
   'app.askRovo': 'Ask Rovo',
   'app.rovoUnavailable': 'Rovo is not enabled on this site. The built-in assistant below works without Rovo.',
-  'app.poweredBy': 'Superport · Workflow Analyzer',
+  'app.poweredBy': 'Superport · Workflow Analyzer for Jira',
   'app.forbidden': 'You need project administrator permissions to use the Workflow Analyzer.',
   'app.forbiddenSite': 'You need Jira administrator permissions to use the site-wide analysis.',
   'app.warning': 'Note',
+
+  // Kill switch (SUPERPORT maintenance, decided on the server)
+  'maint.badge': 'Under maintenance',
+  'maint.title': 'Workflow Analyzer for Jira is temporarily unavailable',
+  'maint.body': 'We\'ve paused Workflow Analyzer for Jira for maintenance to keep your data safe. Nothing you\'ve saved is lost, and we\'ll be back as soon as possible. You can follow the progress on our status page.',
+  'maint.status': 'View status page',
+  'maint.statusShort': 'Status page',
+  'maint.readonly': 'Changes are paused for maintenance to keep your data safe. You can still view everything; editing will be back as soon as possible.',
+  'maint.readonlyToast': 'Changes are paused for maintenance to keep your data safe. Please try again later.',
 
   // Tabs
   'tab.overview': 'Overview',
@@ -166,7 +186,11 @@ const en = {
   'im.title': 'Dependency & impact finder',
   'im.intro': 'Every group, app, field, user, role, screen and permission that your workflow rules depend on. Select an entry to see exactly which transitions are affected – before you delete a group, uninstall an app or rename a field.',
   'im.filter': 'Filter …',
-  'im.usedIn': 'Used in {t} transitions · {w} workflows',
+  'im.usedIn': 'Used in {t} · {w}',
+  'im.t1': '1 transition',
+  'im.tN': '{n} transitions',
+  'im.w1': '1 workflow',
+  'im.wN': '{n} workflows',
   'im.unresolved': 'not found',
   'im.unresolvedHint': 'This object no longer exists on the site (deleted or renamed). Rules that depend on it may block transitions.',
   'im.inactive': 'inactive',
@@ -471,7 +495,7 @@ const en = {
 };
 
 const de = {
-  'app.title': 'Workflow-Analyzer',
+  'app.title': 'Workflow Analyzer for Jira',
   'app.tag': 'Workflow-Analyzer',
   'app.subtitleProject': 'Projekt {key} · {name}',
   'app.subtitleSite': 'Instanzweite Analyse · alle Workflows',
@@ -490,10 +514,19 @@ const de = {
   'app.searchNoResults': 'Keine Treffer.',
   'app.askRovo': 'Rovo fragen',
   'app.rovoUnavailable': 'Rovo ist auf dieser Instanz nicht aktiviert. Der integrierte Assistent unten funktioniert auch ohne Rovo.',
-  'app.poweredBy': 'Superport · Workflow-Analyzer',
+  'app.poweredBy': 'Superport · Workflow Analyzer for Jira',
   'app.forbidden': 'Für den Workflow-Analyzer benötigen Sie Projektadministrator-Rechte.',
   'app.forbiddenSite': 'Für die instanzweite Analyse benötigen Sie Jira-Administrator-Rechte.',
   'app.warning': 'Hinweis',
+
+  // Kill switch (SUPERPORT-Wartung, auf dem Server entschieden)
+  'maint.badge': 'Wartungsarbeiten',
+  'maint.title': 'Workflow Analyzer for Jira ist vorübergehend nicht verfügbar',
+  'maint.body': 'Wir haben Workflow Analyzer for Jira zu Ihrem Schutz für Wartungsarbeiten pausiert. Ihre gespeicherten Daten bleiben erhalten, und wir sind so schnell wie möglich wieder da. Den aktuellen Stand finden Sie auf unserer Statusseite.',
+  'maint.status': 'Statusseite öffnen',
+  'maint.statusShort': 'Statusseite',
+  'maint.readonly': 'Änderungen sind zu Ihrem Schutz wegen Wartungsarbeiten pausiert. Sie können weiterhin alles ansehen; Bearbeiten ist so schnell wie möglich wieder möglich.',
+  'maint.readonlyToast': 'Änderungen sind zu Ihrem Schutz wegen Wartungsarbeiten pausiert. Bitte versuchen Sie es später noch einmal.',
 
   'tab.overview': 'Übersicht',
   'tab.diagram': 'Diagramm',
@@ -624,7 +657,11 @@ const de = {
   'im.title': 'Abhängigkeits- & Auswirkungsanalyse',
   'im.intro': 'Alle Gruppen, Apps, Felder, Benutzer, Rollen, Masken und Berechtigungen, von denen Ihre Workflow-Regeln abhängen. Wählen Sie einen Eintrag, um genau die betroffenen Transitionen zu sehen – bevor Sie eine Gruppe löschen, eine App deinstallieren oder ein Feld umbenennen.',
   'im.filter': 'Filtern …',
-  'im.usedIn': 'Genutzt in {t} Transitionen · {w} Workflows',
+  'im.usedIn': 'Genutzt in {t} · {w}',
+  'im.t1': '1 Transition',
+  'im.tN': '{n} Transitionen',
+  'im.w1': '1 Workflow',
+  'im.wN': '{n} Workflows',
   'im.unresolved': 'nicht gefunden',
   'im.unresolvedHint': 'Dieses Objekt existiert auf der Instanz nicht mehr (gelöscht oder umbenannt). Davon abhängige Regeln können Transitionen blockieren.',
   'im.inactive': 'inaktiv',

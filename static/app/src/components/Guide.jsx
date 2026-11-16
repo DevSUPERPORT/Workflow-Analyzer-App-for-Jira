@@ -1,14 +1,26 @@
+/**
+ * Guide tab: renders the in-app tutorial (golden rules, chapters, tips, FAQ) from guide-content.js in the user's
+ * language and can start the guided tour. While AI is effectively off, AI-only chapters and texts are left out.
+ *
+ * @file        static/app/src/components/Guide.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-16
+ */
+
 import { useState } from 'react';
 import { useT } from '../lib/i18n.jsx';
-import { useApp } from './common.jsx';
-import { GUIDE } from '../lib/guide-content.js';
+import { useApp, useAiOn } from './common.jsx';
+import { guideFor } from '../lib/guide-content.js';
 import Icon from './Icon.jsx';
 
 // In-app tutorial: how to use the Workflow Analyzer safely in your space.
 export default function Guide({ onTour }) {
   const t = useT();
   const { actions } = useApp();
-  const content = GUIDE[t.lang] || GUIDE.en;
+  const content = guideFor(t.lang, useAiOn());
   const [open, setOpen] = useState(() => new Set([content.chapters[0].id]));
   const [done, setDone] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem('superport.wfa.guideDone') || '[]')); } catch { return new Set(); }

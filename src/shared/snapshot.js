@@ -1,4 +1,14 @@
-// Compact workflow snapshots (stored in Forge KVS) and structural diffs between two snapshots.
+/**
+ * Compact workflow snapshots (stored in Forge KVS) with stable rule signatures and hashes, and structural diffs
+ * between two snapshots for the change timeline and the daily monitor.
+ *
+ * @file        src/shared/snapshot.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 import { allRules } from './engine.js';
 
@@ -58,6 +68,8 @@ export function diffSnapshots(a, b) {
   const byId = (arr) => new Map(arr.map((w) => [w.id, w]));
   const A = byId(a.workflows);
   const B = byId(b.workflows);
+  // Jira returns issue types and source statuses in no stable order – compare them as sets
+  const list = (arr) => [...arr].sort((x, y) => String(x).localeCompare(String(y))).join(', ');
   for (const [id, wf] of B) if (!A.has(id)) changes.push({ type: 'workflow', op: 'added', wf: wf.n, name: wf.n });
   for (const [id, wf] of A) if (!B.has(id)) changes.push({ type: 'workflow', op: 'removed', wf: wf.n, name: wf.n });
 
@@ -65,8 +77,8 @@ export function diffSnapshots(a, b) {
     const wa = A.get(id);
     if (!wa) continue;
     if (wa.n !== wb.n) changes.push({ type: 'workflow', op: 'changed', wf: wb.n, name: wb.n, detail: { field: 'name', from: wa.n, to: wb.n } });
-    const ita = wa.it.join(', ');
-    const itb = wb.it.join(', ');
+    const ita = list(wa.it);
+    const itb = list(wb.it);
     if (ita !== itb) changes.push({ type: 'workflow', op: 'changed', wf: wb.n, name: wb.n, detail: { field: 'issueTypes', from: ita, to: itb } });
 
     const sa = new Map(wa.s.map((s) => [s[0], s]));
@@ -87,7 +99,7 @@ export function diffSnapshots(a, b) {
       if (!o) continue;
       // Snapshots stored before events were tracked have no "ev" – do not report every transition as changed
       const events = o.ev === undefined ? [] : [['event', o.ev, t.ev]];
-      for (const [field, x, y] of [['name', o.n, t.n], ['to', o.to, t.to], ['from', o.f.join(', '), t.f.join(', ')], ['screen', o.sc, t.sc], ...events]) {
+      for (const [field, x, y] of [['name', o.n, t.n], ['to', o.to, t.to], ['from', list(o.f), list(t.f)], ['screen', o.sc, t.sc], ...events]) {
         if ((x || '') !== (y || '')) changes.push({ type: 'transition', op: 'changed', wf: wb.n, name: t.n, detail: { field, from: x, to: y } });
       }
       const ra = new Map(o.r.map((r) => [r[0], r]));

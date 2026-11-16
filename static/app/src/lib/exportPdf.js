@@ -1,3 +1,16 @@
+/**
+ * Branded PDF export with jsPDF: cover with KPIs, workflows with diagrams and transitions, dependencies and
+ * health findings, with header and footer on every page. Diagrams are rasterised up front so the PDF can be
+ * built synchronously inside the click handler.
+ *
+ * @file        static/app/src/lib/exportPdf.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { t as tr, findingText, formatDate } from '../../../../src/shared/i18n.js';

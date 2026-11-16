@@ -1,6 +1,6 @@
 {
   "module": {
-    "title": "Workflow Analyzer",
-    "adminTitle": "Workflow Analyzer (site-wide)"
+    "title": "Workflow Analyzer for Jira",
+    "adminTitle": "Workflow Analyzer for Jira (site-wide)"
   }
 }

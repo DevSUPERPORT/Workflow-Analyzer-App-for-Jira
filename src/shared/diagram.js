@@ -1,5 +1,14 @@
-// Workflow diagram geometry. Pure functions used by the React view, the HTML export
-// (static SVG string) and the PDF export (rasterised SVG).
+/**
+ * Workflow diagram geometry: lays out statuses and transitions and renders them as an SVG string. Pure functions
+ * used by the React view, the HTML export (static SVG) and the PDF export (rasterised SVG).
+ *
+ * @file        src/shared/diagram.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 const NODE_H = 36;
 const GAP_X = 250;
@@ -181,6 +190,18 @@ export function layoutWorkflow(wf, opts = {}) {
         label: { x: lx, y: ly, text, w: text.length * 6 + 14 },
       });
     }
+  }
+
+  // Labels of edges that share a corridor (e.g. several global transitions) can land on each
+  // other – nudge each one vertically to the nearest free slot
+  const placed = [];
+  const hits = (l, y) => placed.some((p) => Math.abs(p.x - l.x) < (p.w + l.w) / 2 + 4 && Math.abs(p.y - y) < 22);
+  for (const e of edges) {
+    const l = e.label;
+    let y = l.y;
+    for (let k = 1; hits(l, y) && k <= 12; k++) y = l.y + (k % 2 ? -1 : 1) * Math.ceil(k / 2) * 22;
+    l.y = y;
+    placed.push(l);
   }
 
   // Bounding box

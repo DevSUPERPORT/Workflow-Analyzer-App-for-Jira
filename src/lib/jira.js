@@ -1,9 +1,18 @@
-// Jira REST access for the Workflow Analyzer.
-// Workflow configuration is read with the app's own permissions (asApp) because project
-// administrators of company-managed projects cannot read shared workflows via REST.
-// Every entry point checks the *user's* permissions first (see auth.js).
+/**
+ * Jira REST access for the Workflow Analyzer: paging, retries, project and workflow bundles, reference data,
+ * status load, issue creation. Workflow configuration is read with the app's own permissions (asApp) because
+ * project admins of company-managed projects cannot read shared workflows via REST; every entry point checks the
+ * user's permissions first (see auth.js).
+ *
+ * @file        src/lib/jira.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-16
+ */
 
-import api, { route } from '@forge/api';
+import api, { route, getAppContext } from '@forge/api';
 import { collectRawRefs } from '../shared/engine.js';
 
 const MAX_GROUP_PAGES = 40; // 40 * 50 = 2000 groups for name matching inside app configurations
@@ -235,6 +244,26 @@ export async function getReferenceData(ids, warnings, { firstWorkflowId } = {}) 
         }
       : null,
   };
+}
+
+// Host of the current site, kept for one invocation only: a Forge function container serves many sites.
+let hostCache = { invocationId: null, host: null };
+
+/**
+ * Host of the Jira site this invocation runs for, e.g. "bigcorp.atlassian.net" (for per-site AI caps). From
+ * serverInfo.baseUrl, read as the app: works the same in resolvers, Rovo actions and triggers (the Forge app
+ * context carries no site URL). baseUrl stays the *.atlassian.net address even with a custom domain (displayUrl).
+ */
+export async function siteHost() {
+  let invocationId = null;
+  try {
+    invocationId = getAppContext()?.invocationId || null;
+  } catch { /* outside the Forge runtime: no cache */ }
+  if (invocationId && hostCache.invocationId === invocationId) return hostCache.host;
+  const info = await jira(route`/rest/api/3/serverInfo`);
+  const host = new URL(String(info?.baseUrl || '')).host.toLowerCase();
+  if (invocationId) hostCache = { invocationId, host };
+  return host;
 }
 
 // ------------------------------------------------------------------ project bundle

@@ -1,4 +1,15 @@
-// Verifies every translation key used in the code exists in both dictionaries (EN + DE).
+/**
+ * Verifies that every translation key used in src/ and the Custom UI exists in both dictionaries (EN and DE);
+ * exits with an error listing the missing keys.
+ *
+ * @file        scripts/check-i18n.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');

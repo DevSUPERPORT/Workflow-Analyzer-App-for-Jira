@@ -1,3 +1,16 @@
+/**
+ * Unit tests of the Phase 2 analytics: persona simulation, access matrix, path finder, similarity and
+ * comparison, governance and action plan, load insights, Mermaid export, remediation issues and stable finding
+ * fingerprints.
+ *
+ * @file        tests/insights.test.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalize } from '../src/shared/engine.js';

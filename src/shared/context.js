@@ -1,4 +1,14 @@
-// Compact, LLM-friendly text description of an analysed model (used by the Forge LLM Copilot).
+/**
+ * Builds a compact, LLM-friendly text description of an analysed model (workflows, transitions, rules, findings)
+ * for the Forge LLM Copilot, capped to a character budget.
+ *
+ * @file        src/shared/context.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 import { describeRule, describeConditionTree } from './explain.js';
 import { findingText } from './i18n.js';

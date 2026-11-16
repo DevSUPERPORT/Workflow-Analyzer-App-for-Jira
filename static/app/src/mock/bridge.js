@@ -1,6 +1,21 @@
-// Local mock of @forge/bridge used with `vite --mode mock`. Serves fixture data so the UI,
-// exports and language switching can be tested in a normal browser without Jira.
+/**
+ * Local mock of @forge/bridge used with `vite --mode mock`: serves fixture data and simulates every resolver so
+ * the UI, exports and language switching can be tested in a normal browser without Jira. URL hashes switch
+ * scenarios, including #maintenance=on and #maintenance=readonly for the kill-switch screens, #ai=on, #ai=off and
+ * #ai=limit for the per-site AI switch and the monthly quota (without a hash the switch is stored like on a site:
+ * off until it is turned on in the site page's Settings tab), #ai=stopped for AI turned off by SUPERPORT, and
+ * #budget=<AI_BUDGET JSON, URL-encoded> for other limits, e.g. #admin&budget=%7B%22callsPerMonth%22%3A50%7D.
+ *
+ * @file        static/app/src/mock/bridge.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-16
+ */
+
 import { makeProcurementBundle } from '../../../../tests/fixtures/procurement.js';
+import { parseAiBudget, effectiveCaps } from '../../../../src/lib/aiBudget.js';
 
 const isSite = () => /^#admin/.test(window.location.hash);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -83,8 +98,54 @@ async function mockPlan(s, ops, instructions, explanation, source, lang) {
   return plan;
 }
 
+// #maintenance=on / #maintenance=readonly previews the kill-switch screens (the real switch is APP_MAINTENANCE on
+// the server). Mirrors READS in src/index.js: in read-only mode everything else is refused.
+const MOCK_READS = new Set(['bootstrap', 'getProjectData', 'getNotes', 'listSnapshots', 'getSnapshot', 'siteScanPage', 'siteRefs', 'siteProjects', 'getStatusLoad', 'getIssueTypes', 'getRemediation', 'getMonitoring', 'aiAsk', 'listPlans', 'getPlan', 'siteBulkList', 'siteBulkGet', 'resolutionAudit', 'resolutionIssues', 'resolutionRuns', 'getAiSettings']);
+const STATUS_URL = 'https://superapps.statuspage.io';
+const maintenanceMode = () => (window.location.hash.match(/maintenance=(on|readonly)/) || [])[1] || 'off';
+
+// AI switch and quota (server: lib/ai.js). #ai=on / #ai=off force the switch, #ai=limit simulates a used-up quota,
+// #ai=stopped SUPERPORT's stop (the stored switch is kept). #budget=<URL-encoded AI_BUDGET JSON> is parsed like on
+// the server (lib/aiBudget.js) for the mock site superportdev.atlassian.net.
+const MOCK_HOST = 'superportdev.atlassian.net';
+const aiHash = () => (window.location.hash.match(/ai=(on|off|limit|stopped)/) || [])[1] || null;
+function aiCaps() {
+  const raw = (window.location.hash.match(/budget=([^&]+)/) || [])[1];
+  let json = '';
+  try { json = raw ? decodeURIComponent(raw) : ''; } catch { /* malformed: defaults */ }
+  const { budget, error } = parseAiBudget(json);
+  if (error) console.warn('[mock] #budget ignored:', error);
+  const caps = effectiveCaps(budget, MOCK_HOST);
+  return aiHash() === 'stopped' ? { ...caps, stop: true } : caps;
+}
+const aiOn = (s) => (aiHash() && aiHash() !== 'stopped' ? aiHash() !== 'off' : s.aiEnabled === true);
+function aiUsage(s, c = aiCaps()) {
+  const month = new Date().toISOString().slice(0, 7);
+  const limits = { calls: c.callsPerMonth, tokens: c.tokensPerMonth };
+  const u = aiHash() === 'limit' ? { calls: limits.calls, tokens: Math.floor(limits.tokens * 0.87) } : s.llmUsage?.month === month ? s.llmUsage : { calls: 0, tokens: 0 };
+  return { month, calls: u.calls, tokens: u.tokens, limits, exhausted: u.calls >= limits.calls || u.tokens >= limits.tokens };
+}
+const AI_TEXT = {
+  AI_STOPPED: { de: 'Die KI-Funktionen sind vorübergehend vom App-Anbieter ausgeschaltet. Bitte versuchen Sie es später erneut.', en: 'AI features are temporarily turned off by the app vendor. Please try again later.' },
+  AI_DISABLED: { de: 'Die KI-Funktionen sind deaktiviert. Ein Jira-Administrator kann sie in den App-Einstellungen aktivieren.', en: 'AI features are turned off. A Jira administrator can turn them on in the app settings.' },
+  AI_LIMIT: { de: 'Das monatliche KI-Kontingent ist aufgebraucht. Es steht ab dem 1. des nächsten Monats wieder zur Verfügung.', en: 'The monthly AI quota is used up. It is available again from the 1st of next month.' },
+};
+/** null when the AI request may go ahead (and is counted), otherwise the refusal the server would send. */
+function aiGate(s, lang) {
+  const code = aiCaps().stop ? 'AI_STOPPED' : !aiOn(s) ? 'AI_DISABLED' : aiUsage(s).exhausted ? 'AI_LIMIT' : null;
+  if (code) return { ok: false, error: code, message: AI_TEXT[code][lang === 'de' ? 'de' : 'en'] };
+  const u = aiUsage(s);
+  s.llmUsage = { month: u.month, calls: u.calls + 1, tokens: u.tokens + 2400 + Math.floor(Math.random() * 1800) };
+  save(s);
+  return null;
+}
+
 export async function invoke(name, payload = {}) {
   await wait(name === 'getProjectData' ? 500 : 120);
+  const mode = maintenanceMode();
+  if (name === 'availability') return ok({ mode, statusUrl: STATUS_URL });
+  if (mode === 'on') return { ok: false, error: 'UNAVAILABLE', mode, message: `Workflow Analyzer for Jira is temporarily unavailable. We've paused it for maintenance to keep your data safe. Status page: ${STATUS_URL}` };
+  if (mode === 'readonly' && !MOCK_READS.has(name)) return { ok: false, error: 'UNAVAILABLE', mode, message: `Changes are paused for maintenance to keep your data safe. Status page: ${STATUS_URL}` };
   const s = load();
   switch (name) {
     case 'bootstrap':
@@ -101,7 +162,20 @@ export async function invoke(name, payload = {}) {
           : /role=project/.test(location.hash)
             ? { role: 'project-admin', jiraAdmin: false, projectAdmin: true, changeShared: false, changeProjectScoped: true, createTasks: true, bulk: false }
             : { role: 'jira-admin', jiraAdmin: true, projectAdmin: true, changeShared: true, changeProjectScoped: true, createTasks: true, bulk: isSite() },
+        ai: { enabled: aiOn(s) && !aiCaps().stop, stopped: aiCaps().stop },
       });
+    case 'getAiSettings':
+    case 'setAiSettings': {
+      if (/role=project|forbidden/.test(location.hash)) return { ok: false, error: 'FORBIDDEN_SITE' };
+      if (name === 'setAiSettings') {
+        if (typeof payload.enabled !== 'boolean') return { ok: false, error: 'FAILED', message: 'enabled must be true or false' };
+        s.aiEnabled = payload.enabled;
+        s.aiChanged = { at: new Date().toISOString(), byName: 'Mock Admin' };
+        save(s);
+        if (aiHash()) console.info('[mock] #ai= in the URL overrides the stored switch');
+      }
+      return ok({ enabled: aiOn(s), stopped: aiCaps().stop, updatedAt: s.aiChanged?.at || null, updatedByName: s.aiChanged?.byName || null, usage: aiUsage(s) });
+    }
     case 'setPrefs':
       s.prefs = { ...(s.prefs || {}), ...payload };
       save(s);
@@ -197,10 +271,21 @@ export async function invoke(name, payload = {}) {
         lastSeen: '2026-10-14T08:00:00.000Z',
         state: /changed/.test(location.hash) ? { lastRun: new Date().toISOString(), lastChangeAt: '2026-10-20T03:00:00.000Z', lastChangeCount: 3, newHigh: 1, lastChanges: [{ type: 'transition', op: 'added', wf: 'IDE: Bedarfsworkflow', name: 'Ablehnen' }] } : s.monitorState || null,
       });
-    case 'aiAsk':
+    case 'aiAsk': {
+      const refused = aiGate(s, payload.lang);
+      if (refused) return refused;
       await wait(700);
       return ok({ answer: `(Mock) Zur Frage „${payload.question}“: Der Workflow „IDE: Bedarfsworkflow“ hat 15 Status. Die Transition „GB OK“ dürfen nur Mitglieder von „Procurement“ und zusätzlich „recht“ oder der Melder ausführen.`, model: 'claude-sonnet-5 (mock)' });
+    }
+    case 'siteBulkAi': {
+      const refused = aiGate(s, payload.lang);
+      if (refused) return refused;
+      await wait(900);
+      return ok({ operations: [{ op: 'requireFields', transition: '@done', fields: ['Resolution'], message: 'Please set a resolution' }], explanation: '(Mock) Every transition into a Done status gets a validator that requires the resolution.', model: 'claude-sonnet-5 (mock)' });
+    }
     case 'aiPlan': {
+      const refused = aiGate(s, payload.lang);
+      if (refused) return refused;
       await wait(900);
       const text = String(payload.instructions || '').toLowerCase();
       const ops = /eskal|escal/.test(text)

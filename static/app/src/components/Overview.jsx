@@ -1,3 +1,15 @@
+/**
+ * Overview tab: health score tile, KPIs, apps and vendors in use, workflows and issue types, the governance
+ * score per area and the prioritised action plan (P1-P3).
+ *
+ * @file        static/app/src/components/Overview.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { useT } from '../lib/i18n.jsx';
 import { useApp, Kpi, ScoreRing, scoreLabelKey, SevBadge, VendorBadge, EmptyState } from './common.jsx';
 import Icon from './Icon.jsx';

@@ -1,9 +1,41 @@
-// In-app tutorial content (EN/DE): how to use the Workflow Analyzer safely in your space.
+/**
+ * In-app tutorial content in English and German: how to use the Workflow Analyzer safely, from the first
+ * analysis to AI-assisted changes. Also the source of docs/USER-GUIDE.md (scripts/build-user-guide.mjs).
+ * Parts that invite using AI carry `aiOnly: true` (left out while AI is off) or a `noAi` / `introNoAi` variant;
+ * guideFor() picks the right ones, so the in-app guide shows no AI entry point while AI is off.
+ *
+ * @file        static/app/src/lib/guide-content.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-16
+ */
+
+/**
+ * The guide in one language for the current AI state: while AI is off, chapters marked aiOnly are left out and
+ * texts with a variant without AI (introNoAi, a step's noAi) use that variant.
+ * @param {'en' | 'de'} lang
+ * @param {boolean} aiOn effective AI state (site switch on and not stopped)
+ */
+export function guideFor(lang, aiOn) {
+  const g = GUIDE[lang] || GUIDE.en;
+  if (aiOn) return g;
+  return {
+    ...g,
+    intro: g.introNoAi || g.intro,
+    golden: { ...g.golden, rules: g.golden.rulesNoAi || g.golden.rules },
+    chapters: g.chapters
+      .filter((c) => !c.aiOnly)
+      .map((c) => ({ ...c, intro: c.introNoAi || c.intro, steps: c.steps.map((s) => (s.noAi ? { ...s, ...s.noAi } : s)) })),
+  };
+}
 
 export const GUIDE = {
   en: {
     title: 'Guide: using the Workflow Analyzer safely',
     intro: 'This guide walks you through everything from your first analysis to safe, AI-assisted workflow changes. Reading and analysing never changes anything in Jira – only an Autopilot plan that you explicitly apply does.',
+    introNoAi: 'This guide walks you through everything from your first analysis to safe workflow changes. Reading and analysing never changes anything in Jira – only an Autopilot plan that you explicitly apply does.',
     tocTitle: 'Chapters',
     progress: '{n}% completed',
     open: 'Open',
@@ -63,8 +95,12 @@ export const GUIDE = {
         title: 'Change workflows safely with the Autopilot',
         minutes: 5,
         intro: 'The Autopilot turns your request into a plan. Nothing changes until you apply the plan.',
+        introNoAi: 'The Autopilot turns an automatic fix or a template into a plan. Nothing changes until you apply the plan.',
         steps: [
-          { title: '1. Describe the change', text: 'Write what you need in your own words, with exact names, e.g. "Add a status Escalated reachable from Review, only for the role Administrators, with a way back". Or use a template or "Auto-fix findings".', tab: 'autopilot', tabLabel: 'Autopilot' },
+          {
+            title: '1. Describe the change', text: 'Write what you need in your own words, with exact names, e.g. "Add a status Escalated reachable from Review, only for the role Administrators, with a way back". Or use a template or "Auto-fix findings".', tab: 'autopilot', tabLabel: 'Autopilot',
+            noAi: { title: '1. Create a plan', text: '"Auto-fix findings" plans the fixes for findings that can be fixed automatically; "Templates" covers common changes such as setting the resolution on Done transitions, restricting a transition or requiring fields.' },
+          },
           { title: '2. Review the plan', text: 'Check every operation (✓ = possible, ✕ = not possible and will be skipped), the preview of added/removed/changed elements, the health score before → after and any new findings.' },
           { title: '3. Check who is affected', text: 'If the workflow is shared with other projects, the plan lists them. Apply only if the change is right for all of them – or ask your Jira admin to give the project its own workflow first.' },
           { title: '4. Apply', text: '"Apply to Jira" re-checks the plan against the latest version, lets Jira validate it, stores a snapshot and a backup, then updates the workflow. Company-managed workflows require Jira administrator rights.' },
@@ -75,8 +111,10 @@ export const GUIDE = {
       },
       {
         id: 'ai',
+        aiOnly: true,
         title: 'Working with AI (Copilot & Rovo)',
         minutes: 2,
+        intro: 'The AI features (AI chat, "Plan with AI", Bulk "Describe (AI)" and the Rovo agent) are off by default and only appear in the app once they are on. Only Jira administrators can turn them on, on the site-wide page under Settings › AI features, where they also see the usage of this month (limits set by SUPERPORT, the app vendor; by default 1,000 AI requests and 2,000,000 tokens per site and month).',
         steps: [
           { title: 'Ask questions', text: 'AI assistant › "Ask your workflows" answers questions using the live analysis of this project. It runs on Atlassian (Forge LLMs) – your data stays in Atlassian Cloud.', tab: 'assistant', tabLabel: 'AI assistant' },
           { title: 'Rovo agent "Workflow Analyst"', text: 'In Rovo chat you can ask for overviews, usages, health checks, access checks – and let it plan and apply changes. It always shows the plan and asks for confirmation before changing Jira.' },
@@ -128,6 +166,7 @@ export const GUIDE = {
   de: {
     title: 'Anleitung: Den Workflow-Analyzer sicher nutzen',
     intro: 'Diese Anleitung führt Sie von der ersten Analyse bis zu sicheren, KI-gestützten Workflow-Änderungen. Lesen und Analysieren verändert nie etwas in Jira – nur ein Autopilot-Plan, den Sie ausdrücklich übernehmen.',
+    introNoAi: 'Diese Anleitung führt Sie von der ersten Analyse bis zu sicheren Workflow-Änderungen. Lesen und Analysieren verändert nie etwas in Jira – nur ein Autopilot-Plan, den Sie ausdrücklich übernehmen.',
     tocTitle: 'Kapitel',
     progress: '{n} % erledigt',
     open: 'Öffnen:',
@@ -187,8 +226,12 @@ export const GUIDE = {
         title: 'Workflows sicher mit dem Autopilot ändern',
         minutes: 5,
         intro: 'Der Autopilot macht aus Ihrer Anfrage einen Plan. Es ändert sich nichts, bevor Sie den Plan übernehmen.',
+        introNoAi: 'Der Autopilot macht aus einer automatischen Korrektur oder einer Vorlage einen Plan. Es ändert sich nichts, bevor Sie den Plan übernehmen.',
         steps: [
-          { title: '1. Änderung beschreiben', text: 'Beschreiben Sie in eigenen Worten und mit genauen Namen, was Sie brauchen, z. B. „Status Eskaliert anlegen, erreichbar aus Prüfung, nur für die Rolle Administrators, mit Rückweg“. Oder Vorlage bzw. „Befunde automatisch beheben“ nutzen.', tab: 'autopilot', tabLabel: 'Autopilot' },
+          {
+            title: '1. Änderung beschreiben', text: 'Beschreiben Sie in eigenen Worten und mit genauen Namen, was Sie brauchen, z. B. „Status Eskaliert anlegen, erreichbar aus Prüfung, nur für die Rolle Administrators, mit Rückweg“. Oder Vorlage bzw. „Befunde automatisch beheben“ nutzen.', tab: 'autopilot', tabLabel: 'Autopilot',
+            noAi: { title: '1. Plan erstellen', text: '„Befunde automatisch beheben“ plant die Korrekturen für automatisch behebbare Befunde; „Vorlagen“ deckt häufige Änderungen ab, z. B. die Lösung bei Fertig-Transitionen setzen, eine Transition einschränken oder Pflichtfelder verlangen.' },
+          },
           { title: '2. Plan prüfen', text: 'Jede Operation prüfen (✓ = möglich, ✕ = nicht möglich und wird übersprungen), die Vorschau der hinzugefügten/entfernten/geänderten Elemente, den Health-Score vorher → nachher und neue Befunde.' },
           { title: '3. Betroffene prüfen', text: 'Wird der Workflow von anderen Projekten mitgenutzt, listet der Plan sie auf. Nur übernehmen, wenn die Änderung für alle passt – oder den Jira-Admin bitten, dem Projekt zuerst einen eigenen Workflow zu geben.' },
           { title: '4. Übernehmen', text: '„In Jira übernehmen“ prüft den Plan gegen die aktuelle Version, lässt Jira validieren, speichert Snapshot und Sicherung und aktualisiert dann den Workflow. Unternehmensverwaltete Workflows erfordern Jira-Administrator-Rechte.' },
@@ -199,8 +242,10 @@ export const GUIDE = {
       },
       {
         id: 'ai',
+        aiOnly: true,
         title: 'Mit KI arbeiten (Copilot & Rovo)',
         minutes: 2,
+        intro: 'Die KI-Funktionen (KI-Chat, „Mit KI planen“, Bulk „Beschreiben (KI)“ und der Rovo-Agent) sind standardmäßig deaktiviert und erscheinen in der App erst, wenn sie eingeschaltet sind. Nur Jira-Administratoren können sie einschalten – auf der instanzweiten Seite unter Einstellungen › KI-Funktionen, wo sie auch den Verbrauch dieses Monats sehen (Grenzen legt SUPERPORT als App-Anbieter fest; standardmäßig 1.000 KI-Anfragen und 2.000.000 Tokens je Site und Monat).',
         steps: [
           { title: 'Fragen stellen', text: 'KI-Assistent › „Fragen Sie Ihre Workflows“ antwortet mit der Live-Analyse dieses Projekts. Die KI läuft auf Atlassian (Forge LLMs) – Ihre Daten bleiben in der Atlassian Cloud.', tab: 'assistant', tabLabel: 'KI-Assistent' },
           { title: 'Rovo-Agent „Workflow Analyst“', text: 'Im Rovo-Chat erhalten Sie Übersichten, Verwendungen, Prüfungen und Zugriffsanalysen – und können Änderungen planen und übernehmen lassen. Vor jeder Änderung zeigt der Agent den Plan und fragt nach Bestätigung.' },
@@ -250,3 +295,7 @@ export const GUIDE = {
     },
   },
 };
+
+// Golden rules while AI is off: the same rules, without the mention of the AI
+GUIDE.en.golden.rulesNoAi = GUIDE.en.golden.rules.map((r) => r.replace(' – never automatically, never by the AI alone.', ' – never automatically.'));
+GUIDE.de.golden.rulesNoAi = GUIDE.de.golden.rules.map((r) => r.replace(' – nie automatisch, nie durch die KI allein.', ' – nie automatisch.'));

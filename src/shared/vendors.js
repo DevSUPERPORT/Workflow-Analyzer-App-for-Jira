@@ -1,8 +1,19 @@
-// Vendor (app) detection for workflow rules.
-// Jira Cloud's workflow API encodes the rule origin in the ruleKey:
-//   system:*  -> Atlassian (Jira built-in)
-//   connect:* -> Connect app, parameters.appKey identifies the app
-//   forge:*   -> Forge app, parameters.key is an extension ARI containing the appId
+/**
+ * Vendor (app) detection for workflow rules: maps a rule to the Atlassian built-in, Connect or Forge app it
+ * comes from, with names and colours for known apps.
+ *
+ * Jira Cloud's workflow API encodes the rule origin in the ruleKey:
+ *   system:*  -> Atlassian (Jira built-in)
+ *   connect:* -> Connect app, parameters.appKey identifies the app
+ *   forge:*   -> Forge app, parameters.key is an extension ARI containing the appId
+ *
+ * @file        src/shared/vendors.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 const KNOWN_APPS = [
   { test: /jmwe|innovalog/i, name: 'JMWE', vendor: 'Appfire' },

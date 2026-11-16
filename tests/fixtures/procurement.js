@@ -1,5 +1,14 @@
-// Realistic test bundle modelled on a German procurement workflow (legacy "IDE" export)
-// in the shape returned by the backend (src/lib/jira.js -> getProjectBundle).
+/**
+ * Realistic test bundle modelled on a German procurement workflow (the legacy "IDE" export), in the shape
+ * returned by src/lib/jira.js getProjectBundle. Used by the unit tests and the mock UI.
+ *
+ * @file        tests/fixtures/procurement.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 const G_PROC = '8b1e2c10-1111-4a7b-9b6e-0a0000000001';
 const G_WGB = '8b1e2c10-2222-4a7b-9b6e-0a0000000002';

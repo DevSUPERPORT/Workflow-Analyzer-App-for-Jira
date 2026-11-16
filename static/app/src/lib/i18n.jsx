@@ -1,3 +1,15 @@
+/**
+ * React side of the shared dictionary: the language context, the useT hook with date formatting, and the
+ * per-browser language choice in localStorage.
+ *
+ * @file        static/app/src/lib/i18n.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { createContext, useContext } from 'react';
 import { t as translate, formatDate } from '../../../../src/shared/i18n.js';
 

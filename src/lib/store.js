@@ -1,4 +1,15 @@
-// Forge KVS persistence: user preferences, team notes per transition and workflow snapshots.
+/**
+ * Forge KVS persistence: user preferences, team notes per transition, workflow snapshots (chunked), remediation
+ * tasks, monitoring state and per-user visit tracking. All keys are sanitised so hostile IDs cannot reach other
+ * storage entries.
+ *
+ * @file        src/lib/store.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 import { kvs } from '@forge/kvs';
 import { chunkString } from '../shared/snapshot.js';
@@ -152,4 +163,40 @@ export async function touchLastSeen(accountId, projectId) {
   const prev = await kvs.get(key);
   await kvs.set(key, new Date().toISOString());
   return prev || null;
+}
+
+// ---------------------------------------------------------------- AI switch and monthly Forge LLM usage
+
+// One record per installation. AI is OFF unless a Jira admin switched it on (a missing value means off).
+const AI_SETTINGS = 'ai-settings';
+
+export async function getAiSettings() {
+  const s = (await kvs.get(AI_SETTINGS)) || {};
+  return { aiEnabled: s.aiEnabled === true, updatedAt: s.updatedAt || null, updatedBy: s.updatedBy || null, updatedByName: s.updatedByName || null, history: Array.isArray(s.history) ? s.history : [] };
+}
+
+/** Saves the switch with who changed it and when; the last 50 changes are kept as a change log. */
+export async function setAiEnabled(enabled, user) {
+  const prev = await getAiSettings();
+  const entry = { aiEnabled: enabled === true, at: new Date().toISOString(), by: user?.accountId || null, byName: user?.displayName || null };
+  const next = { aiEnabled: entry.aiEnabled, updatedAt: entry.at, updatedBy: entry.by, updatedByName: entry.byName, history: [entry, ...prev.history].slice(0, 50) };
+  await kvs.set(AI_SETTINGS, next);
+  return next;
+}
+
+/** Calendar month in UTC, e.g. "2026-11". */
+export const usageMonth = (date = new Date()) => date.toISOString().slice(0, 7);
+const usageKey = (month) => `llm-usage:${month}`;
+
+export async function getLlmUsage(month = usageMonth()) {
+  const u = (await kvs.get(usageKey(month))) || {};
+  return { month, calls: Number(u.calls) || 0, tokens: Number(u.tokens) || 0 };
+}
+
+/** Counts one Forge LLM call and its tokens (0 when the response reported no usage). */
+export async function addLlmUsage(month, tokens) {
+  const u = await getLlmUsage(month);
+  const next = { calls: u.calls + 1, tokens: u.tokens + (Number(tokens) > 0 ? Math.round(Number(tokens)) : 0), updatedAt: new Date().toISOString() };
+  await kvs.set(usageKey(month), next);
+  return { month, ...next };
 }

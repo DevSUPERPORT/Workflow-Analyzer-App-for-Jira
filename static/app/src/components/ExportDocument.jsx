@@ -1,5 +1,15 @@
-// Static document rendered with renderToStaticMarkup for the HTML export. Reuses the
-// same rule/condition components as the app so the export always matches the UI.
+/**
+ * Static document rendered with renderToStaticMarkup for the HTML export. Reuses the same rule and condition
+ * components as the app so the export always matches the UI.
+ *
+ * @file        static/app/src/components/ExportDocument.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { LangContext, useT } from '../lib/i18n.jsx';
 import { AppContext, ConditionTree, RuleList, StatusPill, VendorBadge, SevBadge, Kpi, ScoreRing, scoreLabelKey } from './common.jsx';
 import { buildSections } from './Transitions.jsx';

@@ -1,8 +1,18 @@
-// Workflow analysis engine. Pure JavaScript, shared by the Forge backend (resolvers,
-// Rovo actions) and the Custom UI frontend (views and exports).
-//
-// Input: a "bundle" as produced by src/lib/jira.js (raw Jira REST payloads plus
-// reference data). Output: a normalized, analysed model.
+/**
+ * Workflow analysis engine in pure JavaScript, shared by the Forge backend (resolvers, Rovo actions) and the
+ * Custom UI (views and exports). It normalises workflows, builds the dependency index, runs the health checks
+ * and computes stats and search.
+ *
+ * Input: a "bundle" as produced by src/lib/jira.js (raw Jira REST payloads plus reference data).
+ * Output: a normalized, analysed model.
+ *
+ * @file        src/shared/engine.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 import { SYSTEM_RULES, ECOSYSTEM_RULES, refsFromSystemParams, parseConfig, inspectAppConfig, refsFromProperties } from './rules.js';
 import { JIRA_VENDOR } from './vendors.js';

@@ -1,3 +1,15 @@
+/**
+ * Access tab: simulates who can run which transition for a chosen persona (groups, roles, reporter, assignee),
+ * finds the path from one status to another and shows the who-can-do-what matrix.
+ *
+ * @file        static/app/src/components/Access.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { useMemo, useState } from 'react';
 import { useT } from '../lib/i18n.jsx';
 import { useApp, StatusPill } from './common.jsx';
@@ -84,8 +96,8 @@ export default function Access({ model, workflows, persona, setPersona }) {
               <button type="button" className="btn small" onClick={() => setPersona({ ...persona, selected: new Set() })}>{t('tt.none')}</button>
               <button type="button" className="btn small dark" onClick={() => actions.showOverlay('persona')}><Icon name="diagram" />{t('acc.showInDiagram')}</button>
             </div>
-            <div className="row" style={{ marginTop: 12, gap: 6 }}>
-              <StateChip state="yes" /> {counts.yes} <StateChip state="no" /> {counts.no} <StateChip state="maybe" /> {counts.maybe}
+            <div className="row" style={{ marginTop: 12, gap: 6, flexWrap: 'wrap' }}>
+              {['yes', 'no', 'maybe'].map((s) => <span key={s} className="row" style={{ gap: 6, whiteSpace: 'nowrap' }}><StateChip state={s} /> {counts[s]}</span>)}
             </div>
           </div>
 

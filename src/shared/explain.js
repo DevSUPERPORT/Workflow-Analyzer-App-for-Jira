@@ -1,5 +1,14 @@
-// Plain-language explanations of workflows, transitions and rules (EN/DE).
-// Deterministic "assistant" layer: works offline, inside exports and for the Rovo agent.
+/**
+ * Plain-language explanations of workflows, transitions, rules and condition trees in English and German. A
+ * deterministic "assistant" layer that works offline, inside exports and for the Rovo agent.
+ *
+ * @file        src/shared/explain.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 import { t as tr } from './i18n.js';
 import { flattenConditions, allRules } from './engine.js';

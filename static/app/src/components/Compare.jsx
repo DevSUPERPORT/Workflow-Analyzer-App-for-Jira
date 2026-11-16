@@ -1,3 +1,15 @@
+/**
+ * Compare tab: side-by-side comparison of two workflows (statuses, transitions, rules) with a similarity score,
+ * and detection of near-duplicate workflow pairs as consolidation candidates.
+ *
+ * @file        static/app/src/components/Compare.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { useMemo, useState } from 'react';
 import { useT } from '../lib/i18n.jsx';
 import { StatusPill } from './common.jsx';

@@ -1,5 +1,14 @@
-// Phase 2 analytics: access simulation, path finding, workflow similarity/comparison,
-// governance categories, action plan, live load insights, Mermaid export, remediation issues.
+/**
+ * Phase 2 analytics: access simulation per persona, path finding, workflow similarity and comparison, governance
+ * categories, the prioritised action plan, live load insights, Mermaid export and remediation issue payloads.
+ *
+ * @file        src/shared/insights.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 import { allRules, flattenConditions } from './engine.js';
 import { ruleSignature } from './snapshot.js';
@@ -278,7 +287,8 @@ export function loadInsights(model, load) {
       if (!l) continue;
       if (s.category !== 'DONE' && l.count >= 5 && l.count / total >= 0.3) out.push({ code: 'BOTTLENECK', severity: 'medium', wfId: wf.id, wfName: wf.name, status: s.name, statusId: s.id, count: l.count, share: Math.round((100 * l.count) / total) });
       if (s.category !== 'DONE' && l.stale >= 3 && l.stale / Math.max(1, l.count) >= 0.5) out.push({ code: 'STALE', severity: 'medium', wfId: wf.id, wfName: wf.name, status: s.name, statusId: s.id, count: l.count, stale: l.stale, days: load.staleDays });
-      if (l.count === 0 && l.ever === 0 && s.ref !== init) out.push({ code: 'NEVER_USED', severity: 'low', wfId: wf.id, wfName: wf.name, status: s.name, statusId: s.id });
+      // An empty project says nothing about which statuses are needed
+      if (load.all !== 0 && l.count === 0 && l.ever === 0 && s.ref !== init) out.push({ code: 'NEVER_USED', severity: 'low', wfId: wf.id, wfName: wf.name, status: s.name, statusId: s.id });
     }
   }
   return out;

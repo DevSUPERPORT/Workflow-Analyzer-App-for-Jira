@@ -1,5 +1,15 @@
-// End-to-end tests of the real backend code (resolvers, plans, bulk, Rovo actions, monitoring)
-// against FakeJira. Run with: node --test --experimental-test-module-mocks tests/backend.e2e.test.js
+/**
+ * End-to-end tests of the real backend code (resolvers, plans, bulk changes, Rovo actions, monitoring) against
+ * FakeJira. Run with: node --test --experimental-test-module-mocks tests/backend.e2e.test.js
+ *
+ * @file        tests/backend.e2e.test.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { state, app, store, monitorRun, normalize, G, scenario, ctxProject, ctxSite, call, ok, shape } from './support/harness.js';

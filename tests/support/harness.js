@@ -1,10 +1,21 @@
-// Shared E2E harness: mocks the Forge platform modules and wires them to FakeJira.
-// Must be imported before any src/ module (node --test --experimental-test-module-mocks).
+/**
+ * Shared end-to-end harness: mocks the Forge platform modules (api, kvs, llm, resolver) and wires them to
+ * FakeJira and an in-memory KVS, and provides the standard scenario and call helpers. Must be imported before
+ * any src/ module (node --test --experimental-test-module-mocks).
+ *
+ * @file        tests/support/harness.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-16
+ */
+
 import { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { FakeJira } from '../fakejira/fake.js';
 
-export const state = { jira: null, kvs: new Map(), llm: [], kvsFail: null };
+export const state = { jira: null, kvs: new Map(), llm: [], kvsFail: null, invocationId: 'inv-0' };
 const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
 
 mock.module('@forge/api', {
@@ -13,6 +24,8 @@ mock.module('@forge/api', {
     asUser: () => ({ requestJira: (path, opts) => state.jira.request(String(path), opts || {}, true) }),
   },
   namedExports: {
+    // one Forge invocation per test step: set state.invocationId to start a new one
+    getAppContext: () => ({ invocationId: state.invocationId }),
     route: (strings, ...vals) => strings.reduce((acc, s, i) => acc + s + (i < vals.length ? (vals[i] instanceof URLSearchParams ? vals[i].toString() : encodeURIComponent(String(vals[i]))) : ''), ''),
   },
 });
@@ -80,9 +93,12 @@ export function scenario() {
   j.addIssue({ projectId: '100', issueTypeId: '1', statusId: S.archived });
   j.addIssue({ projectId: '100', issueTypeId: '1', statusId: S.archived });
   state.jira = j;
-  state.kvs = new Map();
+  // AI is off by default on a real site; the scenarios start with a Jira admin having turned it on, so the AI and
+  // Rovo tests exercise the real paths (tests/ai-settings.test.js covers the default and the switch itself)
+  state.kvs = new Map([['ai-settings', { aiEnabled: true }]]);
   state.llm = [];
   state.kvsFail = null;
+  state.invocationId = `inv-${Math.random().toString(36).slice(2)}`;
   return { j, S };
 }
 

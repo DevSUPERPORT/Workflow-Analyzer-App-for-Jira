@@ -1,10 +1,26 @@
+/**
+ * Backend entry point: defines every Custom UI resolver (bootstrap, project data, notes, snapshots, plans, bulk
+ * changes, site scan, issue resolutions), exports the gated Rovo action handlers and the scheduled monitor.
+ * Every resolver passes the SUPERPORT kill switch first (explicit READS allow-list, everything else is a write),
+ * then checks the caller's role on the server. AI entry points (aiAsk, aiPlan, siteBulkAi, every Rovo action) also
+ * pass SUPERPORT's AI budget (AI_BUDGET, set through App Status: stop and monthly limits) and the per-site AI
+ * switch, which is off until a Jira admin turns it on (getAiSettings / setAiSettings).
+ *
+ * @file        src/index.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-16
+ */
+
 import Resolver from '@forge/resolver';
 import { route } from '@forge/api';
 import { getProjectBundle, searchWorkflowsPage, getWorkflowProjects, getReferenceData, jira, getStatusLoad, getCreatableIssueTypes, createIssue, getWorkflowBundle, projectWorkflowIds } from './lib/jira.js';
 import { monitorProject, monitorRun } from './monitor.js';
 import * as plans from './lib/plans.js';
 import * as bulk from './lib/bulk.js';
-import { aiPlan, aiAsk } from './lib/ai.js';
+import { aiPlan, aiAsk, requireAiEnabled, isAiError, aiUsage, aiCaps } from './lib/ai.js';
 import { modelContext } from './shared/context.js';
 import { normalizeLang } from './shared/i18n.js';
 import { assertProjectAdmin, assertJiraAdmin, ForbiddenError, canAdministerProject, isJiraAdmin, userCapabilities } from './lib/auth.js';
@@ -12,8 +28,43 @@ import * as store from './lib/store.js';
 import * as issues from './lib/issues.js';
 import { normalize, clearingSelfTransitions } from './shared/engine.js';
 import { makeSnapshot } from './shared/snapshot.js';
+import * as rovo from './rovo.js';
+import { maintenanceMode, requireAvailable, STATUS_PAGE_URL, UnavailableError } from './lib/maintenance.js';
 
-export { actOverview, actFindUsages, actHealth, actExplain, actStatusLoad, actAccess, actCompare, actRemediate, actPlanChange, actApplyChange, actRollbackChange, actAutofix, actListPlans, actResolutions } from './rovo.js';
+// ---------------------------------------------------------------- Rovo actions (kill switch first)
+
+// Every Rovo action passes the kill switch before anything else (see lib/maintenance.js). Actions that only read
+// keep working in read-only mode; actions that create tasks, plans or change workflows are refused.
+// The Rovo agent is an AI feature: while the site's AI switch is off (the default) every action answers with the
+// "AI features are turned off" text, while SUPERPORT has stopped the AI (AI_BUDGET) with the "turned off by the app
+// vendor" text, and a used-up monthly quota is answered the same way.
+function rovoAction(kind, fn) {
+  return async (payload, context) => {
+    try {
+      requireAvailable(kind);
+      await requireAiEnabled(payload?.language);
+      return await fn(payload, context);
+    } catch (e) {
+      if (e instanceof UnavailableError || isAiError(e)) return { error: e.message };
+      throw e;
+    }
+  };
+}
+
+export const actOverview = rovoAction('read', rovo.actOverview);
+export const actFindUsages = rovoAction('read', rovo.actFindUsages);
+export const actHealth = rovoAction('read', rovo.actHealth);
+export const actExplain = rovoAction('read', rovo.actExplain);
+export const actStatusLoad = rovoAction('read', rovo.actStatusLoad);
+export const actAccess = rovoAction('read', rovo.actAccess);
+export const actCompare = rovoAction('read', rovo.actCompare);
+export const actResolutions = rovoAction('read', rovo.actResolutions);
+export const actListPlans = rovoAction('read', rovo.actListPlans);
+export const actRemediate = rovoAction('write', rovo.actRemediate);
+export const actPlanChange = rovoAction('write', rovo.actPlanChange);
+export const actApplyChange = rovoAction('write', rovo.actApplyChange);
+export const actRollbackChange = rovoAction('write', rovo.actRollbackChange);
+export const actAutofix = rovoAction('write', rovo.actAutofix);
 
 const ADMIN_MODULE = 'workflow-analyzer-admin';
 
@@ -26,19 +77,44 @@ function ctxProject(context) {
 
 const isAdminModule = (context) => String(context?.moduleKey || '').endsWith(ADMIN_MODULE);
 
-// Wrap resolver functions: map errors to a serialisable shape the UI understands.
-function define(name, fn) {
-  resolver.define(name, async (req) => {
+// Resolvers that only read. Everything else counts as a write: a new resolver is blocked in read-only mode
+// unless it is listed here on purpose. (Plans, notes, snapshots, visits and preferences are writes too, because
+// they change the app's storage.)
+const READS = new Set([
+  'bootstrap', 'getProjectData', 'getNotes', 'listSnapshots', 'getSnapshot',
+  'siteScanPage', 'siteRefs', 'siteProjects', 'getStatusLoad', 'getIssueTypes', 'getRemediation', 'getMonitoring',
+  'aiAsk', 'listPlans', 'getPlan', 'siteBulkList', 'siteBulkGet',
+  'resolutionAudit', 'resolutionIssues', 'resolutionRuns', 'getAiSettings',
+]);
+
+// Map errors to a serialisable shape the UI understands.
+function wrap(name, fn) {
+  return async (req) => {
     try {
       return { ok: true, data: await fn(req.payload || {}, req.context || {}) };
     } catch (e) {
+      if (e instanceof UnavailableError) return { ok: false, error: e.code, mode: e.mode, message: e.message };
       if (e instanceof ForbiddenError) return { ok: false, error: e.code };
-      if (e?.code === 'SHARED_CONFIRM' || e?.code === 'ROLLBACK_CONFIRM' || e?.code === 'AI_UNAVAILABLE' || e?.code === 'NOTHING_TO_FIX') return { ok: false, error: e.code, message: e.message };
+      if (e?.code === 'SHARED_CONFIRM' || e?.code === 'ROLLBACK_CONFIRM' || e?.code === 'AI_UNAVAILABLE' || e?.code === 'NOTHING_TO_FIX' || isAiError(e)) return { ok: false, error: e.code, message: e.message };
       console.error(`[${name}]`, e?.status || '', e?.message || e);
       return { ok: false, error: 'FAILED', status: e?.status || null, message: String(e?.message || e).slice(0, 500) };
     }
-  });
+  };
 }
+
+/** Every resolver passes the kill switch first (see lib/maintenance.js), before any permission check or Jira call. */
+function define(name, fn) {
+  resolver.define(name, wrap(name, async (payload, context) => {
+    requireAvailable(READS.has(name) ? 'read' : 'write');
+    return fn(payload, context);
+  }));
+}
+
+/** The UI asks first, so it can show "temporarily unavailable" or "read-only" before loading anything. */
+resolver.define('availability', wrap('availability', async (_p, context) => {
+  if (!context?.accountId) throw new ForbiddenError('FORBIDDEN');
+  return { mode: maintenanceMode(), statusUrl: STATUS_PAGE_URL };
+}));
 
 async function me() {
   try {
@@ -66,7 +142,7 @@ define('bootstrap', async (_p, context) => {
   const [prefs, user] = await Promise.all([store.getPrefs(context.accountId), me()]);
   const project = ctxProject(context);
   const admin = isAdminModule(context);
-  const caps = await userCapabilities(admin ? null : project?.id);
+  const [caps, ai, budget] = await Promise.all([userCapabilities(admin ? null : project?.id), store.getAiSettings(), aiCaps()]);
   return {
     mode: admin ? 'site' : 'project',
     project,
@@ -75,7 +151,33 @@ define('bootstrap', async (_p, context) => {
     allowed: admin ? caps.jiraAdmin : caps.projectAdmin,
     isJiraAdmin: caps.jiraAdmin,
     caps: { ...caps, bulk: admin && caps.jiraAdmin },
+    // only whether AI is on (site switch and not stopped by SUPERPORT); who changed it and the usage are for Jira
+    // admins (getAiSettings)
+    ai: { enabled: ai.aiEnabled && !budget.stop, stopped: budget.stop },
   };
+});
+
+// ---------------------------------------------------------------- AI switch (per site, Jira admins)
+
+// enabled is the site's own setting, kept while SUPERPORT has the AI stopped; limits come from AI_BUDGET
+async function aiSettingsView() {
+  const [s, caps] = await Promise.all([store.getAiSettings(), aiCaps()]);
+  return { enabled: s.aiEnabled, stopped: caps.stop, updatedAt: s.updatedAt, updatedByName: s.updatedByName, usage: await aiUsage(undefined, caps) };
+}
+
+define('getAiSettings', async () => {
+  await assertJiraAdmin();
+  return aiSettingsView();
+});
+
+// Only users with the Jira global permission "Administer Jira", checked live against Jira for every change
+define('setAiSettings', async ({ enabled }, context) => {
+  if (typeof enabled !== 'boolean') throw new Error('enabled must be true or false');
+  await assertJiraAdmin();
+  const user = await me();
+  await store.setAiEnabled(enabled, { accountId: context.accountId || user?.accountId, displayName: user?.displayName });
+  console.log(`[ai-settings] AI features turned ${enabled ? 'on' : 'off'} by ${context.accountId || 'unknown'}`);
+  return aiSettingsView();
 });
 
 define('setPrefs', async (payload, context) => store.setPrefs(context.accountId, payload));
@@ -245,6 +347,7 @@ async function projectOnly(context) {
 
 define('aiAsk', async ({ question, history, workflowId, lang }, context) => {
   const project = await projectOnly(context);
+  await requireAiEnabled(lang);
   const bundle = await getProjectBundle(project.id);
   const ctx = modelContext(normalize(bundle), { workflowId, lang: normalizeLang(lang), ref: bundle.ref });
   return aiAsk({ question, history, context: ctx, lang: normalizeLang(lang) });
@@ -252,6 +355,7 @@ define('aiAsk', async ({ question, history, workflowId, lang }, context) => {
 
 define('aiPlan', async ({ instructions, workflowId, lang }, context) => {
   const project = await projectOnly(context);
+  await requireAiEnabled(lang);
   if (!String(instructions || '').trim()) throw new Error('instructions are required');
   const bundle = await getProjectBundle(project.id);
   const model = normalize(bundle);
@@ -309,6 +413,7 @@ define('siteBulkRollback', async ({ bulkId, workflowId, confirmOverwrite }, cont
 });
 define('siteBulkAi', async ({ instructions, workflowId, lang }, context) => {
   await requireSiteAccess(context);
+  await requireAiEnabled(lang);
   const wb = await getWorkflowBundle([String(workflowId)]);
   const ctx = modelContext(normalize(wb), { lang: normalizeLang(lang), ref: wb.ref });
   const bulkHint = '\nThis change will be applied to MANY workflows. Prefer transition selectors (@all, @done, @global, @to:<status>, @from:<status>, @name:<text>) and refType/ref operations over names that only exist in this example workflow.';
@@ -353,7 +458,10 @@ define('resolutionRuns', async (payload, context) => {
   return issues.listRuns(scope);
 });
 
+// Scheduled trigger. The daily monitor only exists to store snapshots, so it does nothing unless the app is fully
+// on: "on" stops everything, "readonly" stops it too because every run writes (see monitorRun).
 export const monitor = async () => {
+  if (maintenanceMode() !== 'off') return;
   await monitorRun();
 };
 

@@ -1,6 +1,19 @@
+/**
+ * Transitions tab: the per-status table with conditions (AND/OR groups), validators, post functions, screens,
+ * properties and team notes, with vendor filter, search highlighting and multi-select actions. Also exports the
+ * transition detail drawer and the section builder used by the HTML export.
+ *
+ * @file        static/app/src/components/Transitions.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-16
+ */
+
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { useT } from '../lib/i18n.jsx';
-import { useApp, Hl, StatusPill, RuleList, ConditionTree, VendorBadge, SevBadge, EmptyState } from './common.jsx';
+import { useApp, useAiOn, Hl, StatusPill, RuleList, ConditionTree, VendorBadge, SevBadge, EmptyState } from './common.jsx';
 import { findingText } from '../../../../src/shared/i18n.js';
 import { allRules, flattenConditions } from '../../../../src/shared/engine.js';
 import { describeRule, describeTransition } from '../../../../src/shared/explain.js';
@@ -288,7 +301,7 @@ function NoteCell({ wfId, tr, note }) {
       setState(t('tt.noteSaved'));
       setTimeout(() => setState(''), 1800);
     } catch {
-      setState(t('ai.error'));
+      setState(t('tt.noteFailed'));
     }
   };
   return (
@@ -302,6 +315,7 @@ function NoteCell({ wfId, tr, note }) {
 export function TransitionDetails({ wf, tr, model, onClose }) {
   const t = useT();
   const { notes, actions } = useApp();
+  const aiOn = useAiOn(); // "Ask Rovo" exists only while AI is on
   const note = notes?.[wf.id]?.[tr.id];
   const findings = model.findings.filter((f) => f.tKey === tr.key);
   const lines = describeTransition(wf, tr, t.lang, model.findings);
@@ -319,7 +333,7 @@ export function TransitionDetails({ wf, tr, model, onClose }) {
               {tr.to ? <StatusPill status={tr.to} /> : <span className="chip">{t('tt.loop')}</span>}
             </div>
           </div>
-          <button type="button" className="hbtn" onClick={() => actions.askRovo(t('tt.askRovo', { name: tr.name, wf: wf.name }))}><Icon name="sparkle" />{t('app.askRovo')}</button>
+          {aiOn && <button type="button" className="hbtn" onClick={() => actions.askRovo(t('tt.askRovo', { name: tr.name, wf: wf.name }))}><Icon name="sparkle" />{t('app.askRovo')}</button>}
           <button type="button" className="hbtn only" autoFocus onClick={onClose} aria-label={t('tt.close')}><Icon name="x" /></button>
         </div>
         <div className="drawer-body">

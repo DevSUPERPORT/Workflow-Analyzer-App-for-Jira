@@ -1,5 +1,16 @@
-// Compatibility matrix: the configurations we meet on client sites that differ from a fresh test site.
-// Each scenario asserts on what Jira ends up containing after the app read and/or changed it.
+/**
+ * Compatibility matrix: the configurations met on client sites that differ from a fresh test site (team-managed,
+ * Service Management, thousands of groups, hundreds of projects sharing a workflow, sites without AI). Each
+ * scenario asserts on what Jira ends up containing after the app read or changed it.
+ *
+ * @file        tests/compat.e2e.test.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { state, G, scenario, ctxProject, ctxSite, call, ok, normalize } from './support/harness.js';

@@ -1,3 +1,16 @@
+/**
+ * Dependencies tab: every app, group, role, field, user, screen, status and permission used by workflow rules,
+ * down to the transition, with CSV export. Includes "check a list" to see whether pasted names (e.g. groups to
+ * be deleted) are still used.
+ *
+ * @file        static/app/src/components/Impact.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { useMemo, useState } from 'react';
 import { useT } from '../lib/i18n.jsx';
 import { useApp, VendorBadge, EmptyState } from './common.jsx';
@@ -5,6 +18,11 @@ import { REF_TYPES } from '../../../../src/shared/rules.js';
 import { downloadText } from '../lib/download.js';
 import { toCsv } from '../lib/exportCsv.js';
 import Icon from './Icon.jsx';
+
+const usedIn = (t, e) => t('im.usedIn', {
+  t: e.transitionCount === 1 ? t('im.t1') : t('im.tN', { n: e.transitionCount }),
+  w: e.workflowCount === 1 ? t('im.w1') : t('im.wN', { n: e.workflowCount }),
+});
 
 export default function Impact({ model, refType, setRefType, refId, setRefId, refData }) {
   const t = useT();
@@ -93,7 +111,7 @@ export default function Impact({ model, refType, setRefType, refId, setRefId, re
                   {sel.resolved === false && <span className="chip bad" style={{ marginLeft: 8 }}>{t('im.unresolved')}</span>}
                   {sel.inactive && <span className="chip warn" style={{ marginLeft: 8 }}>{t('im.inactive')}</span>}
                 </h2>
-                <div className="row" style={{ justifyContent: 'space-between' }}><span className="muted">{t('im.usedIn', { t: sel.transitionCount, w: sel.workflowCount })}</span><button type="button" className="btn small dark" onClick={() => actions.showImpact(sel)}><Icon name="diagram" />{t('acc.showInDiagram')}</button></div>
+                <div className="row" style={{ justifyContent: 'space-between' }}><span className="muted">{usedIn(t, sel)}</span><button type="button" className="btn small dark" onClick={() => actions.showImpact(sel)}><Icon name="diagram" />{t('acc.showInDiagram')}</button></div>
                 {sel.resolved === false && <div className="alert error" style={{ marginTop: 12 }}><Icon name="alert" size={18} /><span>{t('im.unresolvedHint')}</span></div>}
                 {projects.length > 0 && (
                   <>
@@ -208,7 +226,7 @@ function BulkCheck({ model, refData, onPick }) {
                   <td className="small">
                     {r.entry ? (
                       <>
-                        {t('im.usedIn', { t: r.entry.transitionCount, w: r.entry.workflowCount })}{r.projects.length ? ` · ${t('ov.projects')}: ${r.projects.join(', ')}` : ''}
+                        {usedIn(t, r.entry)}{r.projects.length ? ` · ${t('ov.projects')}: ${r.projects.join(', ')}` : ''}
                         <div className="muted">{usagesText(r.entry).slice(0, 6).join(' · ')}</div>
                         {model.kind === 'site' && ['group', 'role', 'user'].includes(type) && (
                           <div className="row" style={{ marginTop: 4 }} onClick={(e) => e.stopPropagation()}>

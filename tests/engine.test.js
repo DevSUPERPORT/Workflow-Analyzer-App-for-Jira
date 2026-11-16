@@ -1,3 +1,16 @@
+/**
+ * Unit tests of the analysis engine on the procurement fixture: normalisation, vendor detection, condition
+ * trees, the dependency index, health findings, stats, plain-language explanations, snapshots, search and
+ * dictionary completeness.
+ *
+ * @file        tests/engine.test.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalize, allRules, searchModel, collectRawRefs } from '../src/shared/engine.js';

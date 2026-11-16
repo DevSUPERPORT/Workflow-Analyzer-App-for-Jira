@@ -1,6 +1,15 @@
-// Seeded random generator for Jira workflow bundles (new workflow API shape) used by the fuzz tests.
-// Produces valid workflows and – with `malformed: true` – structurally broken ones (dangling
-// references, missing fields, garbage parameters) that real sites can contain after migrations.
+/**
+ * Seeded random generator of Jira workflow bundles (new workflow API shape) for the fuzz tests. Produces valid
+ * workflows and, with `malformed: true`, structurally broken ones (dangling references, missing fields, garbage
+ * parameters) that real sites can contain after migrations.
+ *
+ * @file        tests/fuzz/generator.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 export function rng(seed) {
   let a = seed >>> 0;

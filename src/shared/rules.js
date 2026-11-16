@@ -1,5 +1,15 @@
-// Catalog of Jira Cloud workflow rules (new workflow API format) and helpers to
-// extract the configuration objects a rule depends on (groups, fields, users, ...).
+/**
+ * Catalogue of Jira Cloud workflow rules (new workflow API format) and helpers that extract the configuration
+ * objects a rule depends on (groups, roles, fields, users, screens), including references inside app
+ * configurations and transition/status properties.
+ *
+ * @file        src/shared/rules.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 export const SYSTEM_RULES = {
   // Validators

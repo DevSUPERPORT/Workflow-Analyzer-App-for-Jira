@@ -1,6 +1,16 @@
-// Privilege escalation: every entry point (UI resolvers and Rovo actions) is called the way an attacker would –
-// with another project's IDs, from the wrong module, or as a user whose role does not allow the action.
-// Each test asserts what Jira and the app's storage contain afterwards, not only the error code.
+/**
+ * Privilege-escalation tests: every entry point (UI resolvers and Rovo actions) is called the way an attacker
+ * would, with another project's IDs, from the wrong module, or as a user whose role does not allow the action.
+ * Each test asserts what Jira and the app's storage contain afterwards, not only the error code.
+ *
+ * @file        tests/security.e2e.test.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { state, app, scenario, ctxProject, ctxSite, call, ok } from './support/harness.js';

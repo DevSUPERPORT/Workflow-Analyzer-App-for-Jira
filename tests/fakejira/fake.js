@@ -1,8 +1,18 @@
-// In-memory Jira Cloud simulation for backend end-to-end tests.
-// Implements the REST endpoints the app uses and the validation rules discovered live on
-// a Jira Cloud test site: no conditions on INITIAL, team-managed spaces reject
-// resolution "update field" rules, status removal needs per project/issue type mappings with the
-// removed status still listed, optimistic version checks, and injectable 429 rate limiting.
+/**
+ * In-memory Jira Cloud simulation for the backend end-to-end tests. Implements the REST endpoints the app uses
+ * and the validation rules discovered live on a Jira Cloud test site.
+ *
+ * Rules covered: no conditions on INITIAL, team-managed spaces reject resolution "update field" rules, status
+ * removal needs per project/issue type mappings with the removed status still listed, optimistic version checks,
+ * and injectable 429 rate limiting.
+ *
+ * @file        tests/fakejira/fake.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-16
+ */
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
@@ -20,6 +30,7 @@ export class FakeJira {
     this.resolutions = [{ id: '10000', name: 'Done' }, { id: '10001', name: "Won't Do" }];
     this.issues = [];
     this.me = { accountId: 'user-admin', displayName: 'Test Admin', locale: 'de_DE' };
+    this.baseUrl = 'https://fake.atlassian.net';
     this.perms = { ADMINISTER: true, projectAdmin: new Set() };
     this.rateLimitEvery = 0;
     this.calls = 0;
@@ -107,6 +118,7 @@ export class FakeJira {
   route(method, p, q, body, asUser) {
     let m;
     if (method === 'GET' && p === '/rest/api/3/myself') return this.me;
+    if (method === 'GET' && p === '/rest/api/3/serverInfo') return { baseUrl: this.baseUrl, displayUrl: this.baseUrl, deploymentType: 'Cloud' };
     if (method === 'GET' && p === '/rest/api/3/mypermissions') {
       const keys = (q.get('permissions') || '').split(',');
       const pref = q.get('projectId') || q.get('projectKey');

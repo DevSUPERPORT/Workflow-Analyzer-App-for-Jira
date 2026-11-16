@@ -1,5 +1,15 @@
-// Workflow Autopilot backend: change plans (dry-run), validated apply via the Jira bulk
-// workflow update API, automatic backup + one-click rollback.
+/**
+ * Workflow Autopilot backend: change plans with dry run, validated apply via the Jira bulk workflow update API,
+ * automatic backup and one-click, conflict-aware rollback. Applies are locked against double clicks and re-run
+ * on the latest workflow version.
+ *
+ * @file        src/lib/plans.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 import { kvs } from '@forge/kvs';
 import { route } from '@forge/api';
@@ -99,14 +109,27 @@ export async function loadContextBundle(project, workflowIds) {
 
 export const SITE = { id: 'site', key: 'SITE' };
 
+/**
+ * Jira's validation messages often don't say what they are about ("This status cannot be reached from the start
+ * of the workflow."). Prefix them with the status or transition named in elementReference.
+ */
+export function jiraValidationMessage(e, payload) {
+  const ref = e?.elementReference || {};
+  const msg = String(e?.message || '');
+  const status = ref.statusReference != null && (payload?.statuses || []).find((s) => String(s.statusReference) === String(ref.statusReference));
+  const transition = ref.transitionId != null && (payload?.workflows?.[0]?.transitions || []).find((t) => String(t.id) === String(ref.transitionId));
+  const where = transition?.name ? `"${transition.name}"` : status?.name ? `"${status.name}"` : '';
+  return `${where && !msg.includes(where) ? `${where}: ` : ''}${msg}${ref.ruleId ? ` (${ref.ruleId})` : ''}`;
+}
+
 async function validateWithJira(raw, dr, bundle) {
   try {
     const migrations = dr.statusMappings.length ? dr.statusMappings : removedStatusMigrations(raw, dr.workflow);
     const psm = await projectStatusMappings(String(raw.id), migrations);
     const payload = buildUpdatePayload(dr.workflow, { siteStatuses: bundle.statuses, newStatuses: dr.newStatuses, statusMappings: migrations, projectStatusMappings: psm });
     const res = await jira(route`/rest/api/3/workflows/update/validation`, { method: 'POST', body: { payload, validationOptions: { levels: ['ERROR', 'WARNING'] } } });
-    const errors = hintForMappingErrors((res?.errors || []).filter((e) => e.level === 'ERROR').map((e) => e.message), psm);
-    const warnings = (res?.errors || []).filter((e) => e.level !== 'ERROR').map((e) => e.message);
+    const errors = hintForMappingErrors((res?.errors || []).filter((e) => e.level === 'ERROR').map((e) => jiraValidationMessage(e, payload)), psm);
+    const warnings = (res?.errors || []).filter((e) => e.level !== 'ERROR').map((e) => jiraValidationMessage(e, payload));
     return { ok: errors.length === 0, errors: [...new Set(errors)], warnings: [...new Set(warnings)], at: new Date().toISOString() };
   } catch (e) {
     return { ok: null, errors: [], warnings: [], unavailable: String(e?.message || e).slice(0, 300) };
@@ -223,8 +246,8 @@ async function assertCanChange(plan) {
 async function validateAndUpdate(payload, psm = null) {
   const validation = await jira(route`/rest/api/3/workflows/update/validation`, { method: 'POST', asUser: true, body: { payload, validationOptions: { levels: ['ERROR', 'WARNING'] } } });
   const errors = (validation?.errors || []).filter((e) => e.level === 'ERROR');
-  const warnings = (validation?.errors || []).filter((e) => e.level !== 'ERROR').map((e) => e.message);
-  if (errors.length) return { ok: false, errors: hintForMappingErrors(errors.map((e) => `${e.message}${e.elementReference?.ruleId ? ` (${e.elementReference.ruleId})` : ''}`), psm), warnings };
+  const warnings = [...new Set((validation?.errors || []).filter((e) => e.level !== 'ERROR').map((e) => jiraValidationMessage(e, payload)))];
+  if (errors.length) return { ok: false, errors: hintForMappingErrors(errors.map((e) => jiraValidationMessage(e, payload)), psm), warnings };
   const res = await jira(route`/rest/api/3/workflows/update`, { method: 'POST', asUser: true, body: payload });
   return { ok: true, warnings, taskId: res?.taskId || null, version: res?.workflows?.[0]?.version || null };
 }

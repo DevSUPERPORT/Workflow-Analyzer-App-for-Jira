@@ -1,3 +1,16 @@
+/**
+ * Issue resolution check and repair: lists Done issues without a resolution and open issues that still carry
+ * one, suggests a resolution per status and repairs them in place (status unchanged), in batches,
+ * compare-and-set, with an undo for every run.
+ *
+ * @file        static/app/src/components/Resolutions.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../lib/i18n.jsx';
 import { call } from '../lib/api.js';

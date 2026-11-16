@@ -1,3 +1,15 @@
+/**
+ * Dialog that turns selected health findings into Jira tasks (with the user's own Create permission), skipping
+ * findings that already have a task, and opens created issues through the Forge router.
+ *
+ * @file        static/app/src/components/Remediate.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { useEffect, useState } from 'react';
 import { router } from '@forge/bridge';
 import { useT } from '../lib/i18n.jsx';

@@ -1,6 +1,15 @@
-// Rovo agent actions ("Workflow Analyst"). Each action returns compact JSON that the
-// agent turns into a natural-language answer. Authorization: the calling user must be
-// administrator of the requested project (checked asUser), data is read asApp.
+/**
+ * Rovo agent actions ("Workflow Analyst"): each action returns compact JSON that the agent turns into a
+ * natural-language answer. The calling user must administer the requested project (checked asUser) before
+ * anything is read asApp; the kill switch is applied by the wrappers in src/index.js.
+ *
+ * @file        src/rovo.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 import { getProjectBundle, getStatusLoad, getCreatableIssueTypes, createIssue } from './lib/jira.js';
 import { getRemediation, addRemediation } from './lib/store.js';

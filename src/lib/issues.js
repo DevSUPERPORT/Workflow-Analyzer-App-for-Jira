@@ -1,11 +1,22 @@
-// Issue resolution check and repair. A wrong workflow leaves two kinds of damage in the issue data:
-// issues in a Done status without a resolution (filters, reports and dashboards count them as open) and
-// open issues that still carry a resolution (they count as resolved). The workflow fix only helps future
-// transitions – this module finds the existing issues and repairs them in place, without changing their status.
-//
-// Everything runs as the user: the search only returns issues the user may browse, and the edit uses the
-// user's permissions. Jira admins may override screen security (the Resolution field is rarely on an edit
-// screen) and suppress notification mails; other users can only repair issues whose edit screen has the field.
+/**
+ * Issue resolution check and repair: finds issues in a Done status without a resolution and open issues that
+ * still carry one, and repairs them in place without changing their status, with a run log for undo.
+ *
+ * A wrong workflow leaves two kinds of damage in the issue data: Done issues without a resolution (filters, reports
+ * and dashboards count them as open) and open issues that still carry a resolution (they count as resolved). The
+ * workflow fix only helps future transitions.
+ *
+ * Everything runs as the user: the search only returns issues the user may browse, and the edit uses the
+ * user's permissions. Jira admins may override screen security (the Resolution field is rarely on an edit
+ * screen) and suppress notification mails; other users can only repair issues whose edit screen has the field.
+ *
+ * @file        src/lib/issues.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
 
 import { route } from '@forge/api';
 import { jira, approximateCount } from './jira.js';
@@ -190,6 +201,8 @@ export async function recordRun(scope, { runId, kind, by, undoOf, results }) {
   const done = results.filter((r) => r.status === 'repaired').map((r) => ({ key: r.key, from: r.from, to: r.to }));
   const runs = await listRuns(scope);
   let run = runs.find((r) => r.id === runId);
+  // A run that changed nothing and failed nothing (e.g. everything was already repaired) is not history
+  if (!run && !done.length && !results.some((r) => r.status === 'failed')) return null;
   if (!run) {
     run = { id: runId, kind: KINDS[kind] ? kind : null, at: new Date().toISOString(), by: by || null, undoOf: RUN_RE.test(String(undoOf || '')) ? undoOf : null, items: [], failed: 0, skipped: 0 };
     runs.unshift(run);

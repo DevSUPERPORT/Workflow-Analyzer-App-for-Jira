@@ -1,6 +1,21 @@
+/**
+ * Autopilot tab: create change plans from templates, the Copilot or auto-fix, review the dry run (diff and
+ * health before/after), apply after confirmation and roll back. Handles hand-offs from other tabs, expired or
+ * outdated plans and shared-workflow confirmation. While AI is effectively off, the free-text request, its
+ * examples and "Plan with AI" / "Plan in Rovo chat" are not rendered (no notice): the tab then offers its non-AI
+ * tools only – auto-fix, templates and the review/apply/rollback of plans.
+ *
+ * @file        static/app/src/components/Autopilot.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-16
+ */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../lib/i18n.jsx';
-import { useApp, LifecycleRail, EmptyState, Skeleton } from './common.jsx';
+import { useApp, useAiOn, LifecycleRail, EmptyState, Skeleton, AiLabel, aiErrorText } from './common.jsx';
 import Icon from './Icon.jsx';
 import { call } from '../lib/api.js';
 import { openRovo } from './Assistant.jsx';
@@ -27,7 +42,8 @@ export function PlanStatus({ status, label }) {
 
 export default function Autopilot({ model, workflows, allWorkflows = workflows, bundle, toast, intent, reload }) {
   const t = useT();
-  const { actions } = useApp();
+  const { actions, ai } = useApp();
+  const aiOn = useAiOn();
   const [wfId, setWfId] = useState(workflows.length === 1 ? workflows[0].id : workflows[0]?.id || '');
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(null);
@@ -81,7 +97,8 @@ export default function Autopilot({ model, workflows, allWorkflows = workflows, 
         refresh().then(() => setSel(intent.planId));
       }
     }
-    if (intent.text) {
+    // A request for the Copilot is only taken over while AI is on (its sender is hidden otherwise)
+    if (intent.text && aiOn) {
       setText(intent.text);
       if (intent.wfId && workflows.some((w) => w.id === intent.wfId)) setWfId(intent.wfId);
       setTimeout(() => { textRef.current?.focus(); textRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 60);
@@ -91,15 +108,15 @@ export default function Autopilot({ model, workflows, allWorkflows = workflows, 
   const run = async (label, fn) => {
     setBusy(label);
     setError(null);
-    try { return await fn(); } catch (e) { setError(e.code === 'SHARED_CONFIRM' ? t('ap.sharedConfirm') : e.code === 'FORBIDDEN_CHANGE_GLOBAL' ? t('role.cannotChange') : e.message); return null; } finally { setBusy(null); }
+    try { return await fn(); } catch (e) { setError(e.code === 'SHARED_CONFIRM' ? t('ap.sharedConfirm') : e.code === 'FORBIDDEN_CHANGE_GLOBAL' ? t('role.cannotChange') : aiErrorText(t, e, ai)); return null; } finally { setBusy(null); }
   };
 
-  const planWithCopilot = () => run('ai', async () => {
+  const planWithCopilot = () => aiOn && run('ai', async () => {
     const res = await call('aiPlan', { instructions: text, workflowId: wf?.id, lang: t.lang });
     setAiNote({ explanation: res.explanation, model: res.model });
     if (res.plan) { await refresh(); setSel(res.plan.id); }
   });
-  const planInRovo = () => openRovo(t('ap.rovoPrompt', { key: model.project?.key, wf: wf?.name, text })).catch(() => toast(t('app.rovoUnavailable')));
+  const planInRovo = () => aiOn && openRovo(t('ap.rovoPrompt', { key: model.project?.key, wf: wf?.name, text })).catch(() => toast(t('app.rovoUnavailable')));
   const autofix = () => run('autofix', async () => { const p = await call('autofixPlan', { workflowId: wf?.id, lang: t.lang }); await refresh(); setSel(p.id); });
   const createFromOps = (ops, instructions) => run('tpl', async () => { const p = await call('createPlan', { workflowId: wf?.id, ops, instructions, lang: t.lang }); setTpl(null); await refresh(); setSel(p.id); });
   // Same operations on the workflow as it is now (plan expired, or the workflow changed since planning)
@@ -166,35 +183,39 @@ export default function Autopilot({ model, workflows, allWorkflows = workflows, 
     <div>
       <section className="card" aria-labelledby="ap-title">
         <div className="card-head">
-          <h2 id="ap-title" className="row" style={{ gap: 10 }}><Icon name="sparkle" size={20} style={{ color: 'var(--accent)' }} />{t('ap.title')}</h2>
+          <h2 id="ap-title" className="row" style={{ gap: 10 }}><Icon name={aiOn ? 'sparkle' : 'wand'} size={20} style={{ color: 'var(--accent)' }} />{aiOn ? t('ap.title') : t('ap.titleNoAi')}</h2>
           {workflows.length > 1 && (
             <select value={wf?.id} onChange={(e) => setWfId(e.target.value)} aria-label={t('app.workflow')} style={{ maxWidth: 360 }}>{workflows.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
           )}
         </div>
-        <p className="muted" style={{ marginTop: -6, maxWidth: '75ch' }}>{t('ap.intro')}</p>
+        <p className="muted" style={{ marginTop: -6, maxWidth: '75ch' }}>{aiOn ? t('ap.intro') : t('ap.introNoAi')}</p>
         {wf && !actions.canChange?.(wf) && (
           <div className="alert info"><Icon name="lock" size={18} /><span className="small">{t('role.cannotChange')}</span></div>
         )}
-        <label htmlFor="ap-text" className="sr-only">{t('ap.placeholder')}</label>
-        <textarea id="ap-text" ref={textRef} autoFocus rows={4} style={{ width: '100%', fontSize: 15 }} value={text} onChange={(e) => setText(e.target.value)} placeholder={t('ap.placeholder')} />
-        <div className="row" style={{ marginTop: 10, gap: 6 }}>
-          {exampleTexts.map((x) => <button key={x} type="button" className="chip ref" onClick={() => setText(x)}>{x}</button>)}
-        </div>
-        <div className="row" style={{ marginTop: 16, gap: 10 }}>
-          <button type="button" className={`btn primary ${busy === 'ai' ? 'busy' : ''}`} disabled={!text.trim() || !!busy} onClick={planWithCopilot}><Icon name="sparkle" />{t('ap.planCopilot')}</button>
-          <button type="button" className="btn dark" disabled={!text.trim()} onClick={planInRovo}><Icon name="message" />{t('ap.planRovo')}</button>
-          <span className="spacer" />
-          <button type="button" className={`btn ${busy === 'autofix' ? 'busy' : ''}`} disabled={!!busy} onClick={autofix}><Icon name="wand" />{t('ap.autofix')}</button>
+        {aiOn && (
+          <>
+            <label htmlFor="ap-text" className="sr-only">{t('ap.placeholder')}</label>
+            <textarea id="ap-text" ref={textRef} autoFocus rows={4} style={{ width: '100%', fontSize: 15 }} value={text} onChange={(e) => setText(e.target.value)} placeholder={t('ap.placeholder')} />
+            <div className="row" style={{ marginTop: 10, gap: 6 }}>
+              {exampleTexts.map((x) => <button key={x} type="button" className="chip ref" onClick={() => setText(x)}>{x}</button>)}
+            </div>
+          </>
+        )}
+        <div className="row" style={{ marginTop: aiOn ? 16 : 4, gap: 10 }}>
+          {aiOn && <button type="button" className={`btn primary ${busy === 'ai' ? 'busy' : ''}`} disabled={!text.trim() || !!busy} onClick={planWithCopilot}><Icon name="sparkle" />{t('ap.planCopilot')}</button>}
+          {aiOn && <button type="button" className="btn dark" disabled={!text.trim()} onClick={planInRovo}><Icon name="message" />{t('ap.planRovo')}</button>}
+          {aiOn && <span className="spacer" />}
+          <button type="button" className={`btn ${aiOn ? '' : 'primary'} ${busy === 'autofix' ? 'busy' : ''}`} disabled={!!busy} onClick={autofix}><Icon name="wand" />{t('ap.autofix')}</button>
           <button type="button" className={`btn ${tpl ? 'on' : ''}`} aria-expanded={!!tpl} onClick={() => setTpl(tpl ? null : 'cancel')}><Icon name="file" />{t('ap.templates')}</button>
         </div>
-        {busy === 'ai' && (
+        {aiOn && busy === 'ai' && (
           <div className="note-box" style={{ marginTop: 14 }} role="status">
             <span className="row" style={{ gap: 10 }}><span className="typing" aria-hidden="true"><i /><i /><i /></span>{t('ap.thinking')}</span>
           </div>
         )}
-        {aiNote && busy !== 'ai' && (
+        {aiOn && aiNote && busy !== 'ai' && (
           <div className="note-box view" style={{ marginTop: 14 }}>
-            <p className="ai-badge" style={{ margin: '0 0 4px' }}><Icon name="sparkle" />Copilot <span className="small muted" style={{ fontWeight: 400 }}>({aiNote.model})</span></p>
+            <p className="ai-badge" style={{ margin: '0 0 6px', flexWrap: 'wrap' }}><Icon name="sparkle" />Copilot <span className="small muted" style={{ fontWeight: 400 }}>({aiNote.model})</span><AiLabel /></p>
             <p style={{ margin: 0, maxWidth: '75ch' }}>{aiNote.explanation}</p>
           </div>
         )}
@@ -210,7 +231,7 @@ export default function Autopilot({ model, workflows, allWorkflows = workflows, 
             <button type="button" className="btn small ghost" onClick={refresh} aria-label={t('app.refresh')}><Icon name="refresh" /></button>
           </div>
           {plans === null && <div className="stack" style={{ padding: '0 18px 18px' }}>{[0, 1, 2].map((i) => <Skeleton key={i} h={44} />)}</div>}
-          {plans?.length === 0 && <EmptyState icon="sparkle" title={t('ap.noPlans')} />}
+          {plans?.length === 0 && <EmptyState icon={aiOn ? 'sparkle' : 'file'} title={aiOn ? t('ap.noPlans') : t('ap.noPlansNoAi')} />}
           <div role="listbox" aria-label={t('ap.plans')} style={{ maxHeight: 'calc(100vh - 260px)', overflow: 'auto', borderTop: plans?.length ? '1px solid var(--border)' : 0 }}>
             {plans?.map((p) => (
               <button key={p.id} type="button" role="option" className="impact-item" aria-selected={sel === p.id} onClick={() => setSel(p.id)} style={{ alignItems: 'flex-start' }}>
@@ -235,7 +256,7 @@ export default function Autopilot({ model, workflows, allWorkflows = workflows, 
             <article className="card view" key={plan.id} aria-labelledby="ap-plan-title">
               <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'nowrap', gap: 16 }}>
                 <div style={{ minWidth: 0 }}>
-                  <div className="small muted row" style={{ gap: 6 }}><Icon name={SOURCE_ICON[plan.source] || 'list'} size={14} />{t(`ap.source.${plan.source}`)} · {t.date(plan.createdAt)}{plan.createdByName ? ` · ${plan.createdByName}` : ''}</div>
+                  <div className="small muted row" style={{ gap: 6 }}><Icon name={SOURCE_ICON[plan.source] || 'list'} size={14} />{t(`ap.source.${plan.source}`)} · {t.date(plan.createdAt)}{plan.createdByName ? ` · ${plan.createdByName}` : ''}{plan.source === 'copilot' && <AiLabel />}</div>
                   <h2 id="ap-plan-title" className="clamp-3" title={plan.instructions || plan.title} style={{ margin: '4px 0 4px', fontSize: 20 }}>{plan.title}</h2>
                   <div className="small">{t('app.workflow')}: <strong>{plan.workflowName}</strong></div>
                 </div>
@@ -332,9 +353,9 @@ export default function Autopilot({ model, workflows, allWorkflows = workflows, 
                 <div className="grid two" style={{ marginBottom: 16, gap: 12 }}>
                   {(plan.fixed.length > 0 || plan.introduced.length > 0) && (
                     <div className="note-box">
-                      {plan.fixed.length > 0 && <div className="small" style={{ fontWeight: 500, marginBottom: 4 }}>{t('ap.fixed')}</div>}
+                      {plan.fixed.length > 0 && <div className="small cap-first" style={{ fontWeight: 500, marginBottom: 4 }}>{t('ap.fixed')}</div>}
                       {plan.fixed.map((f) => <div key={f.id} className="small row" style={{ gap: 6, flexWrap: 'nowrap' }}><Icon name="check" size={14} style={{ color: 'var(--ok)' }} />{findingText(t.lang, f).title}</div>)}
-                      {plan.introduced.length > 0 && <div className="small" style={{ fontWeight: 500, margin: '8px 0 4px' }}>{t('ap.introduced')}</div>}
+                      {plan.introduced.length > 0 && <div className="small cap-first" style={{ fontWeight: 500, margin: '8px 0 4px' }}>{t('ap.introduced')}</div>}
                       {plan.introduced.map((f) => <div key={f.id} className="small row" style={{ gap: 6, flexWrap: 'nowrap' }}><Icon name="alert" size={14} style={{ color: 'var(--high)' }} />{findingText(t.lang, f).title}</div>)}
                     </div>
                   )}

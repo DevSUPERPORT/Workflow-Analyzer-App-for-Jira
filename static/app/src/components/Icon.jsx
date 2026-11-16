@@ -1,5 +1,15 @@
-// One icon family for the whole app: 24px grid, 1.75 stroke, round caps. Decorative by default (aria-hidden);
-// pass `label` for a meaningful standalone icon.
+/**
+ * The app's single authored icon family as inline SVG: 24px grid, 1.75 stroke, round caps. Icons are decorative
+ * by default (aria-hidden); pass `label` for a meaningful standalone icon.
+ *
+ * @file        static/app/src/components/Icon.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 const P = {
   search: <><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4.2-4.2" /></>,
   refresh: <><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8" /><path d="M4 3.5V8h4.5" /><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16" /><path d="M20 20.5V16h-4.5" /></>,
@@ -51,6 +61,8 @@ const P = {
   stop: <rect x="6.5" y="6.5" width="11" height="11" rx="1.5" />,
   send: <><path d="M20.5 3.5 10 14" /><path d="m20.5 3.5-6.5 17-4-6.5-6.5-4Z" /></>,
   key: <><circle cx="8" cy="15" r="4.5" /><path d="m11.2 11.8 8.3-8.3M17 6l2.5 2.5M14.5 8.5l2 2" /></>,
+  pause: <><circle cx="12" cy="12" r="9" /><path d="M10 9v6M14 9v6" /></>,
+  wrench: <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.4-3.4a6 6 0 0 1-7.9 7.9l-6.5 6.5a2.1 2.1 0 0 1-3-3l6.5-6.5a6 6 0 0 1 7.9-7.9Z" />,
 };
 
 export default function Icon({ name, size = 16, label, className = '', strokeWidth = 1.75, style }) {

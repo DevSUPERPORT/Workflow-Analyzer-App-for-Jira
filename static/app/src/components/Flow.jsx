@@ -1,3 +1,15 @@
+/**
+ * Live flow tab: issue counts and stale issues per status from Jira, with bottleneck and never-used-status
+ * insights and a jump to the diagram load overlay.
+ *
+ * @file        static/app/src/components/Flow.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { useMemo, useState } from 'react';
 import { useT } from '../lib/i18n.jsx';
 import { useApp, StatusPill, Kpi, Skeleton } from './common.jsx';

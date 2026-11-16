@@ -1,6 +1,19 @@
+/**
+ * Health check tab: prioritised findings with recommendations, severity filters and focus (from the action plan
+ * or the visit digest), one-click fixes via Autopilot or bulk plans, "Fix with AI" requests, remediation tasks
+ * and the issue resolution card.
+ *
+ * @file        static/app/src/components/Health.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-16
+ */
+
 import { useMemo, useState } from 'react';
 import { useT } from '../lib/i18n.jsx';
-import { useApp, SevBadge, ScoreRing, scoreLabelKey, EmptyState } from './common.jsx';
+import { useApp, useAiOn, SevBadge, ScoreRing, scoreLabelKey, EmptyState } from './common.jsx';
 import Icon from './Icon.jsx';
 import { findingText } from '../../../../src/shared/i18n.js';
 import { findingFingerprint, findingKey } from '../../../../src/shared/insights.js';
@@ -10,6 +23,7 @@ import { openIssue } from './Remediate.jsx';
 export default function Health({ model, workflows, sev, setSev, focus = null, remediation = {}, siteUrl, resolutions = [], dataCard = null }) {
   const t = useT();
   const { actions, caps } = useApp();
+  const aiOn = useAiOn(); // "Fix with AI" and "Ask Rovo" exist only while AI is on
   const [busy, setBusy] = useState(null); // 'all' or a finding id while its fix plan is created
   const ids = new Set(workflows.map((w) => w.id));
   const inScope = model.findings.filter((f) => ids.has(f.wfId));
@@ -98,7 +112,7 @@ export default function Health({ model, workflows, sev, setSev, focus = null, re
         const ft = findingText(t.lang, f);
         const task = remediation[findingFingerprint(f)];
         const canFix = fixable.has(f.id) && mayChange(f);
-        const canAi = !canFix && f.severity !== 'info' && model.kind === 'project' && mayChange(f);
+        const canAi = aiOn && !canFix && f.severity !== 'info' && model.kind === 'project' && mayChange(f);
         return (
           <article key={f.id} className="decision finding" style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}>
             <div className="body">
@@ -118,7 +132,7 @@ export default function Health({ model, workflows, sev, setSev, focus = null, re
               {f.tKey && <button type="button" className="btn small" onClick={() => actions.openTransition(f.tKey)}><Icon name="arrowRight" />{t('hc.goTo')}</button>}
               {task && <button type="button" className="btn small" onClick={() => openIssue(siteUrl, task.key)}><Icon name="external" />{task.key}</button>}
               {!task && canRemediate && f.severity !== 'info' && <button type="button" className="btn small" onClick={() => actions.openRemediation([f])}><Icon name="plus" />{t('hc.task')}</button>}
-              {!canFix && !canAi && <button type="button" className="btn small ghost" onClick={() => actions.askRovo(t('hc.askFix', { title: ft.title, wf: f.wfName, tr: f.tName || '-' }))}><Icon name="sparkle" />{t('app.askRovo')}</button>}
+              {!canFix && !canAi && aiOn && <button type="button" className="btn small ghost" onClick={() => actions.askRovo(t('hc.askFix', { title: ft.title, wf: f.wfName, tr: f.tName || '-' }))}><Icon name="sparkle" />{t('app.askRovo')}</button>}
             </div>
           </article>
         );

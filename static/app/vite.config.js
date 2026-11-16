@@ -1,3 +1,15 @@
+/**
+ * Vite build for the Custom UI. In mock mode it swaps @forge/bridge for the local mock and adds a dev-only
+ * endpoint that saves generated exports to samples/ for inspection; the production build goes to dist/.
+ *
+ * @file        static/app/vite.config.js
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';

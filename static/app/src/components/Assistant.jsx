@@ -1,10 +1,25 @@
+/**
+ * AI assistant tab: the built-in Copilot chat on Forge LLMs, deterministic plain-language explanations of
+ * workflows and transitions, and the hand-off to the Rovo "Workflow Analyst" agent when Rovo is enabled. While AI
+ * is effectively off, the chat, the Rovo card and every "Ask Rovo" button are not rendered at all (no notice); the
+ * deterministic explanations keep working and the tab is then labelled "Explanations".
+ *
+ * @file        static/app/src/components/Assistant.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-16
+ */
+
 import { useEffect, useRef, useState } from 'react';
 import { call } from '../lib/api.js';
 import { rovo } from '@forge/bridge';
 import { useT } from '../lib/i18n.jsx';
-import { useApp } from './common.jsx';
+import { useApp, useAiOn, AiLabel, aiErrorText } from './common.jsx';
 import { describeWorkflow, describeTransition } from '../../../../src/shared/explain.js';
 import Icon from './Icon.jsx';
+import Markdown from './Markdown.jsx';
 
 export const AGENT = { type: 'forge', agentKey: 'workflow-analyst', agentName: 'Workflow Analyst' };
 
@@ -17,12 +32,14 @@ export async function openRovo(prompt) {
 export default function Assistant({ model, workflows }) {
   const t = useT();
   const { actions } = useApp();
+  const aiOn = useAiOn();
   const [enabled, setEnabled] = useState(null);
   const [prompt, setPrompt] = useState('');
   const [pick, setPick] = useState('');
   const key = model.project?.key || '';
 
   useEffect(() => {
+    if (!aiOn) return undefined;
     let alive = true;
     (async () => {
       try {
@@ -33,9 +50,10 @@ export default function Assistant({ model, workflows }) {
       }
     })();
     return () => { alive = false; };
-  }, []);
+  }, [aiOn]);
 
   const ask = async (text) => {
+    if (!aiOn) return;
     try {
       await openRovo(text);
     } catch {
@@ -50,20 +68,22 @@ export default function Assistant({ model, workflows }) {
   return (
     <div className="grid two">
       <div>
-        {model.kind === 'project' && <AiChat model={model} workflows={workflows} />}
-        <section className="card">
-          <h2 className="ai-badge" style={{ fontSize: 17 }}><Icon name="message" size={18} />{t('as.rovoTitle')}</h2>
-          <p className="muted">{t('as.intro')}</p>
-          {enabled === false && <div className="alert info"><Icon name="info" size={18} /><span>{t('app.rovoUnavailable')}</span></div>}
-          <textarea aria-label={t('as.rovoPlaceholder')} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={t('as.rovoPlaceholder')} rows={3} style={{ width: '100%' }} disabled={enabled === false} />
-          <div className="row" style={{ marginTop: 8, justifyContent: 'flex-end' }}>
-            <button type="button" className="btn primary" disabled={!enabled || !prompt.trim()} onClick={() => ask(key && !prompt.includes(key) ? `${prompt} (Project ${key})` : prompt)}><Icon name="send" />{t('as.rovoSend')}</button>
-          </div>
-          <h3 style={{ margin: '20px 0 8px' }}>{t('as.starters')}</h3>
-          {starters.map((s) => (
-            <button key={s} type="button" className="starter" disabled={enabled === false} onClick={() => ask(t(s, { key }))}><Icon name="sparkle" style={{ color: 'var(--accent)' }} /><span style={{ flex: 1 }}>{t(s, { key })}</span><Icon name="arrowRight" style={{ color: 'var(--text-muted)' }} /></button>
-          ))}
-        </section>
+        {model.kind === 'project' && aiOn && <AiChat model={model} workflows={workflows} />}
+        {aiOn && (
+          <section className="card">
+            <h2 className="ai-badge" style={{ fontSize: 17 }}><Icon name="message" size={18} />{t('as.rovoTitle')}</h2>
+            <p className="muted">{t('as.intro')}</p>
+            {enabled === false && <div className="alert info"><Icon name="info" size={18} /><span>{t('app.rovoUnavailable')}</span></div>}
+            <textarea aria-label={t('as.rovoPlaceholder')} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={t('as.rovoPlaceholder')} rows={3} style={{ width: '100%' }} disabled={enabled === false} />
+            <div className="row" style={{ marginTop: 8, justifyContent: 'flex-end' }}>
+              <button type="button" className="btn primary" disabled={!enabled || !prompt.trim()} onClick={() => ask(key && !prompt.includes(key) ? `${prompt} (Project ${key})` : prompt)}><Icon name="send" />{t('as.rovoSend')}</button>
+            </div>
+            <h3 style={{ margin: '20px 0 8px' }}>{t('as.starters')}</h3>
+            {starters.map((s) => (
+              <button key={s} type="button" className="starter" disabled={enabled === false} onClick={() => ask(t(s, { key }))}><Icon name="sparkle" style={{ color: 'var(--accent)' }} /><span style={{ flex: 1 }}>{t(s, { key })}</span><Icon name="arrowRight" style={{ color: 'var(--text-muted)' }} /></button>
+            ))}
+          </section>
+        )}
         <div className="card">
           <h3>{t('as.explainTransition')}</h3>
           <select aria-label={t('as.pickTransition')} value={pick} onChange={(e) => setPick(e.target.value)} style={{ width: '100%' }}>
@@ -79,7 +99,7 @@ export default function Assistant({ model, workflows }) {
               {describeTransition(picked.wf, picked.tr, t.lang, model.findings).map((l, i) => <p key={i}>{l}</p>)}
               <div className="row" style={{ marginTop: 8 }}>
                 <button type="button" className="btn small" onClick={() => actions.openTransition(picked.tr.key)}>{t('tt.details')}</button>
-                {enabled && <button type="button" className="btn small" onClick={() => ask(`Explain the transition "${picked.tr.name}" in workflow "${picked.wf.name}"${key ? ` of project ${key}` : ''}.`)}><Icon name="sparkle" />{t('app.askRovo')}</button>}
+                {aiOn && enabled === true && <button type="button" className="btn small" onClick={() => ask(`Explain the transition "${picked.tr.name}" in workflow "${picked.wf.name}"${key ? ` of project ${key}` : ''}.`)}><Icon name="sparkle" />{t('app.askRovo')}</button>}
               </div>
             </div>
           )}
@@ -98,9 +118,10 @@ export default function Assistant({ model, workflows }) {
   );
 }
 
+// Rendered only while AI is effectively on (see Assistant)
 function AiChat({ workflows }) {
   const t = useT();
-  const { actions } = useApp();
+  const { actions, ai } = useApp();
   const [history, setHistory] = useState([]);
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
@@ -117,7 +138,8 @@ function AiChat({ workflows }) {
       const res = await call('aiAsk', { question: text, history, workflowId: workflows.length === 1 ? workflows[0].id : null, lang: t.lang });
       setHistory([...next, { role: 'assistant', content: res.answer, model: res.model }]);
     } catch (e) {
-      setHistory([...next, { role: 'assistant', content: `${t('ai.error')} (${e.message})`, error: true }]);
+      const known = e?.code === 'AI_DISABLED' || e?.code === 'AI_LIMIT' || e?.code === 'AI_STOPPED';
+      setHistory([...next, { role: 'assistant', content: known ? aiErrorText(t, e, ai) : `${t('ai.error')} (${e.message})`, error: true }]);
     } finally {
       setBusy(false);
     }
@@ -130,8 +152,9 @@ function AiChat({ workflows }) {
       <div className="chat" aria-live="polite">
         {history.length === 0 && <div className="row">{chips.map((k) => <button key={k} type="button" className="chip ref" onClick={() => send(t(k))}>{t(k)}</button>)}</div>}
         {history.map((m, i) => (
-          <div key={i} className={`bubble ${m.role === 'user' ? 'user' : 'ai'} ${m.error ? 'error' : ''}`} style={{ whiteSpace: 'pre-wrap' }}>
-            {m.content}
+          <div key={i} className={`bubble ${m.role === 'user' ? 'user' : 'ai'} ${m.error ? 'error' : ''}`} style={m.role === 'assistant' && !m.error ? undefined : { whiteSpace: 'pre-wrap' }}>
+            {m.role === 'assistant' && !m.error && <AiLabel style={{ marginBottom: 6 }} />}
+            {m.role === 'assistant' && !m.error ? <Markdown text={m.content} /> : m.content}
             {m.model && <div className="small muted" style={{ marginTop: 6 }}>{m.model}</div>}
           </div>
         ))}

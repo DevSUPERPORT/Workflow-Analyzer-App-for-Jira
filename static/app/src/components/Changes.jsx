@@ -1,3 +1,15 @@
+/**
+ * Changes tab: save labelled snapshots of the project's workflow configuration, compare any snapshot with the
+ * current state, and switch the daily change monitoring on or off.
+ *
+ * @file        static/app/src/components/Changes.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { useEffect, useState } from 'react';
 import { useT } from '../lib/i18n.jsx';
 import { call } from '../lib/api.js';

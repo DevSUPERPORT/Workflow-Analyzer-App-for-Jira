@@ -1,3 +1,16 @@
+/**
+ * Interactive workflow diagram with pan, zoom, fit and path highlighting, plus overlays for issue load, persona
+ * access and impact. The live view follows the Jira theme; SVG, PNG and Mermaid exports keep the fixed palette
+ * of diagram.js.
+ *
+ * @file        static/app/src/components/Diagram.jsx
+ * @app         Workflow Analyzer for Jira
+ * @author      George Papasotiriou
+ * @company     SUPERPORT
+ * @created     2026-10-24
+ * @updated     2026-11-05
+ */
+
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { useT } from '../lib/i18n.jsx';
 import { useApp } from './common.jsx';
