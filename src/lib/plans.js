@@ -16,6 +16,7 @@ import { route } from '@forge/api';
 import { jira, getProjectBundle, getWorkflowProjects, getWorkflowBundle, ensureGroups, workflowUsageMap } from './jira.js';
 import { isJiraAdmin, canAdministerProject, ForbiddenError } from './auth.js';
 import * as store from './store.js';
+import { registerAccounts } from './accounts.js';
 import { normalize } from '../shared/engine.js';
 import { dryRun, applyOperations, buildUpdatePayload, autofixOperations, removedStatusMigrations, normalizeOp } from '../shared/autopilot.js';
 import { makeSnapshot, chunkString } from '../shared/snapshot.js';
@@ -71,6 +72,7 @@ async function savePlan(plan) {
   for (let i = next.length - 1; i > 0 && next.length > max; i--) if (!protectedEntry(next[i])) removed.push(...next.splice(i, 1));
   if (next.length > max * 2) removed.push(...next.splice(max * 2));
   await kvs.set(idxKey(plan.projectId), next);
+  await registerAccounts(plan.createdBy, plan.appliedById, plan.rolledBackById);
   for (const r of removed) await deletePlanData(r.id);
   return plan;
 }

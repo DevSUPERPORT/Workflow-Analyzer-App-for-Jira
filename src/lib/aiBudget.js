@@ -182,3 +182,15 @@ export function pricedTokens(usage, promptChars = 0, answerChars = 0) {
   const o = n(usage?.output_tokens ?? usage?.completion_tokens);
   return { inTok: i ?? Math.ceil(promptChars / 3), outTok: o ?? Math.ceil(answerChars / 3) };
 }
+
+/**
+ * The strictest values any site may get: used when the site host can't be looked up, so a site SUPERPORT limited
+ * (or switched off with 0) never falls back to the more generous app-wide values.
+ */
+export function strictestBudget(budget = DEFAULT_AI_BUDGET) {
+  const app = siteBudget(budget, null);
+  const sites = [...new Set([...Object.keys(budget.sites || {}), ...Object.keys(budget.siteCaps || {})])].map((h) => siteBudget(budget, h));
+  const all = [app, ...sites];
+  const min = (f) => Math.min(...all.map((c) => c[f]));
+  return { ...app, stop: all.some((c) => c.stop), callsPerMonth: min('callsPerMonth'), tokensPerMonth: min('tokensPerMonth'), eurPerMonth: min('eurPerMonth') };
+}

@@ -73,7 +73,7 @@ export const GUIDE = {
         title: 'Understand your workflows',
         minutes: 4,
         steps: [
-          { title: 'Overview', text: 'Health and governance scores, apps used by the workflow rules, top findings and a prioritised action plan.', tab: 'overview', tabLabel: 'Overview' },
+          { title: 'Overview', text: 'Health score, workflows, rules, dependencies and apps at a glance, a prioritised action plan and the health check per area.', tab: 'overview', tabLabel: 'Overview' },
           { title: 'Diagram', text: 'Click a status to highlight its paths, click a transition label for details. Overlays show issue load, persona access or the impact of a group/app.', tab: 'diagram', tabLabel: 'Diagram' },
           { title: 'Transitions', text: 'The familiar table: conditions, validators and post functions in plain language. Filter by app (JMWE, JSU, ScriptRunner …) or element, search, and add team notes.', tab: 'transitions', tabLabel: 'Transitions' },
           { title: 'Transition details', text: 'Click a transition name for an explanation of who can execute it, what is checked and what happens afterwards.' },
@@ -206,7 +206,7 @@ export const GUIDE = {
         title: 'Workflows verstehen',
         minutes: 4,
         steps: [
-          { title: 'Übersicht', text: 'Health- und Governance-Score, genutzte Apps, wichtigste Befunde und ein priorisierter Maßnahmenplan.', tab: 'overview', tabLabel: 'Übersicht' },
+          { title: 'Übersicht', text: 'Health-Score, Workflows, Regeln, Abhängigkeiten und Apps auf einen Blick, ein priorisierter Maßnahmenplan und die Prüfung je Bereich.', tab: 'overview', tabLabel: 'Übersicht' },
           { title: 'Diagramm', text: 'Status anklicken hebt seine Wege hervor, Transition anklicken zeigt Details. Ebenen zeigen Vorgangslast, Persona-Zugriff oder die Auswirkung einer Gruppe/App.', tab: 'diagram', tabLabel: 'Diagramm' },
           { title: 'Transitionen', text: 'Die gewohnte Tabelle: Bedingungen, Validierungen und Post-Functions in Klartext. Nach App (JMWE, JSU, ScriptRunner …) oder Element filtern, suchen und Team-Notizen ergänzen.', tab: 'transitions', tabLabel: 'Transitionen' },
           { title: 'Transitionsdetails', text: 'Ein Klick auf den Transitionsnamen erklärt, wer sie ausführen darf, was geprüft wird und was danach passiert.' },

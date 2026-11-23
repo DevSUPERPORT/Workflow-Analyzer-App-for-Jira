@@ -23,7 +23,7 @@ import * as plans from './lib/plans.js';
 import * as bulk from './lib/bulk.js';
 import { aiPlan, aiAsk, requireAiEnabled, isAiError, aiUsage, aiCaps } from './lib/ai.js';
 import { modelContext } from './shared/context.js';
-import { normalizeLang } from './shared/i18n.js';
+import { normalizeLang, t as tr } from './shared/i18n.js';
 import { assertProjectAdmin, assertJiraAdmin, ForbiddenError, canAdministerProject, isJiraAdmin, userCapabilities } from './lib/auth.js';
 import * as store from './lib/store.js';
 import * as issues from './lib/issues.js';
@@ -50,7 +50,8 @@ function rovoAction(kind, fn) {
       await requireAiEnabled(payload?.language);
       return await fn(payload, context);
     } catch (e) {
-      if (e instanceof UnavailableError || e instanceof LicenseError || isAiError(e)) return { error: e.message };
+      if (e instanceof UnavailableError || e instanceof LicenseError) return { error: e.message };
+      if (isAiError(e)) return { error: e.code === 'AI_DISABLED' ? `${e.message} ${tr(normalizeLang(payload?.language), 'ai.offRovo')}` : e.message };
       throw e;
     }
   };
@@ -499,7 +500,7 @@ export const monitor = async () => {
 // (it can write); the next day catches up.
 export const privacy = async () => {
   if (maintenanceMode() !== 'off') return;
-  await reportPersonalData().catch((e) => console.error('[privacy] personal data report failed:', e?.message || e));
+  await reportPersonalData().catch((e) => console.error('[privacy] personal data report failed:', e?.status || '', e?.statusText || e?.message || e));
 };
 
 export const handler = resolver.getDefinitions();

@@ -32,7 +32,7 @@ Atlassian no longer offers the workflow XML download, and the old XML-based *Wor
 
 | | |
 |---|---|
-| 🧭 **Overview** | Health score, KPIs, apps in use, a governance score per area and a prioritised **action plan (P1–P3)**. |
+| 🧭 **Overview** | Health score, KPIs (workflows, rules, dependencies, apps), a prioritised **action plan (P1–P3)** and the health check per area. |
 | 🗺️ **Diagram** | Interactive graph with pan, zoom, path highlighting and overlays for issue load, persona access and impact. Exports as SVG, PNG or Mermaid. |
 | 📋 **Transitions** | The familiar per-status table: conditions (with AND/OR groups), validators, post functions, screens, properties and team notes. Filter by vendor, search with highlighting. |
 | 🔗 **Dependencies** | Every app, group, role, field, user, screen, status and permission used by workflow rules, down to the transition, including references inside JMWE, JSU and ScriptRunner configurations. |

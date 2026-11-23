@@ -88,7 +88,7 @@ const DE = Object.fromEntries(Object.entries(EN).map(([de, en]) => [en, de]));
 // Names inside longer strings ("IDE-101 · Ware geliefert", "Workflow „…“"), longest first so "GB-Kontrolle" wins over "GB"
 const PHRASES = Object.keys(EN).filter((k) => k.length >= 5 && !k.startsWith('(Mock)')).sort((a, b) => b.length - a.length);
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const PHRASE_RE = new RegExp(PHRASES.map(escape).join('|'), 'g');
+const PHRASE_RE = new RegExp(`(?<![\\p{L}\\p{N}])(?:${PHRASES.map(escape).join('|')})(?![\\p{L}\\p{N}])`, 'gu');
 
 const ANSWER = /^\(Mock\) Zur Frage „([\s\S]*)“:/;
 

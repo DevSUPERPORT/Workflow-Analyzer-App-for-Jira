@@ -13,6 +13,7 @@
 
 import { kvs } from '@forge/kvs';
 import * as plans from './plans.js';
+import { registerAccounts } from './accounts.js';
 import { getWorkflowBundle } from './jira.js';
 import { normalize } from '../shared/engine.js';
 import { autofixOperations } from '../shared/autopilot.js';
@@ -27,6 +28,7 @@ async function save(bulk) {
   const idx = (await kvs.get(IDX)) || [];
   const entry = { id: bulk.id, title: bulk.title, createdAt: bulk.createdAt, createdBy: bulk.createdBy || null, targets: bulk.children.length, status: bulk.status, counts: counts(bulk) };
   await kvs.set(IDX, [entry, ...idx.filter((e) => e.id !== bulk.id)].slice(0, 30));
+  await registerAccounts(bulk.createdBy);
   return bulk;
 }
 

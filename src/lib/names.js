@@ -11,12 +11,17 @@
  * @updated     2026-11-23
  */
 
-import { route } from '@forge/api';
+import { route, getAppContext } from '@forge/api';
 import { jira } from './jira.js';
 
 const TTL_MS = 10 * 60 * 1000;
 const ID_RE = /^[A-Za-z0-9:_-]{1,128}$/;
-const cache = new Map(); // accountId -> { name, at }
+const cache = new Map(); // installation + accountId -> { name, at }
+
+// A runtime can serve several installations: names are cached per installation only
+function scope() {
+  try { const c = getAppContext(); return String(c?.installationAri || c?.installationId || c?.cloudId || ''); } catch { return ''; }
+}
 
 /** accountId -> display name (missing when Jira doesn't know the account). Never throws. */
 export async function displayNames(ids) {
@@ -24,8 +29,9 @@ export async function displayNames(ids) {
   const out = new Map();
   const missing = [];
   const now = Date.now();
+  const s = scope();
   for (const id of want) {
-    const c = cache.get(id);
+    const c = cache.get(`${s}|${id}`);
     if (c && now - c.at < TTL_MS) { if (c.name) out.set(id, c.name); } else missing.push(id);
   }
   for (let i = 0; i < missing.length; i += 50) {
@@ -38,7 +44,7 @@ export async function displayNames(ids) {
       const found = new Map((res?.values || []).map((u) => [u.accountId, u.displayName || null]));
       for (const id of batch) {
         const name = found.get(id) || null;
-        cache.set(id, { name, at: now });
+        cache.set(`${s}|${id}`, { name, at: now });
         if (name) out.set(id, name);
       }
     } catch (e) {

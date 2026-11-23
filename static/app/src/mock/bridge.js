@@ -129,7 +129,7 @@ function aiUsage(s, c = aiCaps()) {
 }
 const AI_TEXT = {
   AI_STOPPED: { de: 'Die KI-Funktionen sind vorübergehend vom App-Anbieter ausgeschaltet. Bitte versuchen Sie es später erneut.', en: 'AI features are temporarily turned off by the app vendor. Please try again later.' },
-  AI_DISABLED: { de: 'Die KI-Funktionen sind deaktiviert. Ein Jira-Administrator kann sie in den App-Einstellungen aktivieren.', en: 'AI features are turned off. A Jira administrator can turn them on in the app settings.' },
+  AI_DISABLED: { de: 'Die KI-Funktionen sind deaktiviert. Ein Jira-Administrator kann sie unter Jira-Einstellungen › Apps › Workflow Analyzer for Jira (instanzweit) › KI-Funktionen aktivieren.', en: 'AI features are turned off. A Jira administrator can turn them on under Jira settings › Apps › Workflow Analyzer for Jira (site-wide) › AI features.' },
   AI_LIMIT: { de: 'Das monatliche KI-Kontingent ist aufgebraucht. Es steht ab dem 1. des nächsten Monats wieder zur Verfügung.', en: 'The monthly AI quota is used up. It is available again from the 1st of next month.' },
 };
 /** null when the AI request may go ahead (and is counted), otherwise the refusal the server would send. */

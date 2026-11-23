@@ -17,7 +17,7 @@ import { chat, list } from '@forge/llm';
 import { OPS_JSON_SCHEMA, opsDocumentation } from '../shared/autopilot.js';
 import { t, normalizeLang } from '../shared/i18n.js';
 import { getAiSettings, getLlmUsage, addLlmUsage, usageMonth } from './store.js';
-import { aiBudget, siteBudget, hasSiteCaps, costEur, pricedTokens, STOP_AT } from './aiBudget.js';
+import { aiBudget, siteBudget, strictestBudget, hasSiteCaps, costEur, pricedTokens, STOP_AT } from './aiBudget.js';
 import { siteHost } from './jira.js';
 
 const PREFERRED = ['claude-sonnet-5', 'claude-opus-5', 'claude-sonnet-4-6', 'claude-opus-4-6', 'claude-sonnet-4-5-20250929', 'claude-sonnet-4-20250514', 'claude-haiku-4-5-20251001'];
@@ -69,7 +69,9 @@ export async function aiCaps(budget = aiBudget()) {
   try {
     host = await siteHost();
   } catch (e) {
-    console.warn('[ai-budget] site host unknown, app-wide limits apply:', e?.message || e);
+    // Unknown site: never more than any site may use (a site SUPERPORT limited or switched off stays limited)
+    console.warn('[ai-budget] site host unknown, the strictest limits apply:', e?.message || e);
+    return strictestBudget(budget);
   }
   return siteBudget(budget, host);
 }
@@ -129,7 +131,8 @@ async function complete(messages, extra = {}, lang = 'en') {
   }
   const msg = res?.choices?.[0]?.message || {};
   const answerChars = text(msg.content).length + JSON.stringify(msg.tool_calls || '').length;
-  const eur = costEur(model, pricedTokens(res?.usage, JSON.stringify(req.messages).length, answerChars), caps.eurPerUsd);
+  // without reported usage, estimate from the whole request (messages and the tool schema both count as input)
+  const eur = costEur(model, pricedTokens(res?.usage, JSON.stringify(req).length, answerChars), caps.eurPerUsd);
   await addLlmUsage(usage.month, usageTokens(res?.usage), eur).catch((e) => console.error('[ai] usage not recorded', e?.message || e));
   return { res, model };
 }

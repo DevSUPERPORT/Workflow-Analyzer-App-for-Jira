@@ -18,8 +18,11 @@ import { MONTHLY_LLM_CALLS, MONTHLY_LLM_TOKENS } from '../src/lib/aiLimits.js';
 // after the harness: lib/ai.js loads @forge/llm, which the harness mocks
 const { usageTokens } = await import('../src/lib/ai.js');
 
-const OFF_EN = 'AI features are turned off. A Jira administrator can turn them on in the app settings.';
-const OFF_DE = 'Die KI-Funktionen sind deaktiviert. Ein Jira-Administrator kann sie in den App-Einstellungen aktivieren.';
+const OFF_EN = 'AI features are turned off. A Jira administrator can turn them on under Jira settings › Apps › Workflow Analyzer for Jira (site-wide) › AI features.';
+const OFF_DE = 'Die KI-Funktionen sind deaktiviert. Ein Jira-Administrator kann sie unter Jira-Einstellungen › Apps › Workflow Analyzer for Jira (instanzweit) › KI-Funktionen aktivieren.';
+// Rovo also hears that every action is paused, so the agent doesn't offer work it can't do
+const ROVO_EN = `${OFF_EN} Until then, every Workflow Analyst action is paused, including explanations and access checks. The Workflow Analyzer app itself (Project settings › Apps › Workflow Analyzer for Jira) works without AI.`;
+const ROVO_DE = `${OFF_DE} Bis dahin sind alle Aktionen des Workflow Analyst pausiert, auch Erklärungen und Zugriffsprüfungen. Die App Workflow Analyzer selbst (Projekteinstellungen › Apps › Workflow Analyzer for Jira) funktioniert ohne KI.`;
 const LIMIT_EN = 'The monthly AI quota is used up. It is available again from the 1st of next month.';
 const LIMIT_DE = 'Das monatliche KI-Kontingent ist aufgebraucht. Es steht ab dem 1. des nächsten Monats wieder zur Verfügung.';
 
@@ -86,8 +89,8 @@ test('while AI is off, every Rovo action answers with the "turned off" text and 
   state.llm = [planReply()];
   const before = JSON.stringify([...state.kvs.entries()]);
   for (const [name, payload] of Object.entries(ROVO)) {
-    assert.deepEqual(await app[name]({ ...payload }), { error: OFF_EN }, name);
-    assert.deepEqual(await app[name]({ ...payload, language: 'de' }), { error: OFF_DE }, name);
+    assert.deepEqual(await app[name]({ ...payload }), { error: ROVO_EN }, name);
+    assert.deepEqual(await app[name]({ ...payload, language: 'de' }), { error: ROVO_DE }, name);
   }
   assert.equal(j.log.length, 0, 'no Jira call');
   assert.equal(state.llm.length, 1, 'no model call');

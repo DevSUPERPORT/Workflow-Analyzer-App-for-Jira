@@ -68,6 +68,47 @@ test('the app stores account IDs only; names are looked up when the data is show
   assert.ok(!dump().includes(NAME), 'showing names stores nothing');
 });
 
+test('every place that stores an account ID registers it, and the report reads only the registry', async () => {
+  setup();
+  await useTheApp();
+  assert.deepEqual(state.kvs.get('acct-user-admin')?.id, ME);
+  // data of an account that is only in records, not in the registry, is not scanned for: the registry is the source
+  state.kvs.set('acct-712020:other', { id: '712020:other', at: '2026-11-01T00:00:00.000Z' });
+  await app.privacy();
+  assert.deepEqual(state.privacyReports[0].map((a) => a.accountId).sort(), ['712020:other', ME].sort());
+  assert.equal(state.privacyReports[0].find((a) => a.accountId === '712020:other').updatedAt, '2026-11-01T00:00:00.000Z');
+});
+
+test('erasing runs within a time budget and continues the next day', async () => {
+  setup();
+  await useTheApp();
+  const { reportPersonalData } = await import('../src/lib/privacy.js');
+  await reportPersonalData({ report: async () => [] }); // migration and a first report
+  state.kvs.delete('privacy-last-report');
+  const closed = async (accounts) => accounts.map((a) => ({ accountId: a.accountId, status: 'closed' }));
+  const late = await reportPersonalData({ report: closed, deadline: Date.now() - 1 });
+  assert.equal(late.unfinished, true);
+  assert.equal(state.kvs.has('privacy-last-report'), false, 'not marked as reported');
+  assert.ok(state.kvs.has('acct-user-admin'), 'the account stays registered, so it is reported (and erased) again');
+  const next = await reportPersonalData({ report: closed });
+  assert.equal(next.erased, 1);
+  assert.ok(!dump().includes(ME));
+});
+
+test('the one-time migration is resumable', async () => {
+  setup();
+  state.kvs.set('notes-wf-1', { 11: { text: 'keep', by: ME, byName: NAME, at: '2026-11-01T00:00:00Z' } });
+  state.kvs.set('pref-712020:zz', { lang: 'de', updatedAt: '2026-10-01T00:00:00Z' });
+  const { migrate } = await import('../src/lib/privacy.js');
+  assert.equal(await migrate({ deadline: Date.now() - 1 }), false, 'out of time after the first page');
+  let rounds = 1;
+  while (!(await migrate({ deadline: Date.now() - 1 }))) rounds++;
+  assert.ok(rounds > 1);
+  assert.equal(state.kvs.get('acct-user-admin').id, ME);
+  assert.equal(state.kvs.get('acct-712020:zz').at, '2026-10-01T00:00:00.000Z');
+  assert.ok(!dump().includes(NAME));
+});
+
 test('a renamed account shows its current name', async () => {
   const { j } = setup();
   await ok('saveNote', { workflowId: 'wf-1', transitionId: '11', text: 'x' });
@@ -86,9 +127,12 @@ test('stored account IDs are reported to Atlassian at most once a week', async (
   assert.ok(!Number.isNaN(Date.parse(reported[0].updatedAt)));
   await app.privacy();
   assert.equal(state.privacyReports.length, 1, 'not again within 7 days');
-  state.kvs.set('privacy-last-report', new Date(Date.now() - 8 * 86400000).toISOString());
+  state.kvs.set('privacy-last-report', new Date(Date.now() - 5 * 86400000).toISOString());
   await app.privacy();
-  assert.equal(state.privacyReports.length, 2, 'again after 7 days');
+  assert.equal(state.privacyReports.length, 1, 'not after 5 days');
+  state.kvs.set('privacy-last-report', new Date(Date.now() - 6 * 86400000 - 60000).toISOString());
+  await app.privacy();
+  assert.equal(state.privacyReports.length, 2, 'again after 6 days, so a daily trigger never exceeds 7');
 });
 
 test('a closed account is erased: its own entries deleted, its ID removed from every record, the content kept', async () => {

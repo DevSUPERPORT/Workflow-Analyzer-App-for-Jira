@@ -26,7 +26,7 @@ Die App liest Ihre Workflows live aus Jira – kein XML-Export und kein Feld-Map
 
 ## 2. Workflows verstehen
 
-1. **Übersicht** – Health- und Governance-Score, genutzte Apps, wichtigste Befunde und ein priorisierter Maßnahmenplan.
+1. **Übersicht** – Health-Score, Workflows, Regeln, Abhängigkeiten und Apps auf einen Blick, ein priorisierter Maßnahmenplan und die Prüfung je Bereich.
 2. **Diagramm** – Status anklicken hebt seine Wege hervor, Transition anklicken zeigt Details. Ebenen zeigen Vorgangslast, Persona-Zugriff oder die Auswirkung einer Gruppe/App.
 3. **Transitionen** – Die gewohnte Tabelle: Bedingungen, Validierungen und Post-Functions in Klartext. Nach App (JMWE, JSU, ScriptRunner …) oder Element filtern, suchen und Team-Notizen ergänzen.
 4. **Transitionsdetails** – Ein Klick auf den Transitionsnamen erklärt, wer sie ausführen darf, was geprüft wird und was danach passiert.
@@ -149,7 +149,7 @@ The app reads your workflows live from Jira – no XML export and no field mappi
 
 ## 2. Understand your workflows
 
-1. **Overview** – Health and governance scores, apps used by the workflow rules, top findings and a prioritised action plan.
+1. **Overview** – Health score, workflows, rules, dependencies and apps at a glance, a prioritised action plan and the health check per area.
 2. **Diagram** – Click a status to highlight its paths, click a transition label for details. Overlays show issue load, persona access or the impact of a group/app.
 3. **Transitions** – The familiar table: conditions, validators and post functions in plain language. Filter by app (JMWE, JSU, ScriptRunner …) or element, search, and add team notes.
 4. **Transition details** – Click a transition name for an explanation of who can execute it, what is checked and what happens afterwards.

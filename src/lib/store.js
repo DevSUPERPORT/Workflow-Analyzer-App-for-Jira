@@ -14,6 +14,7 @@
 
 import { kvs } from '@forge/kvs';
 import { chunkString } from '../shared/snapshot.js';
+import { registerAccounts } from './accounts.js';
 
 const MAX_SNAPSHOTS = 50;
 const safeKey = (s) => String(s).replace(/[^a-zA-Z0-9:._\s#-]/g, '_');
@@ -34,6 +35,7 @@ export async function setPrefs(accountId, patch) {
   if (patch && typeof patch.tourDone === 'boolean') allowed.tourDone = patch.tourDone;
   const next = { ...(await getPrefs(accountId)), ...allowed, updatedAt: new Date().toISOString() };
   await kvs.set(safeKey(`pref-${accountId}`), next);
+  await registerAccounts(accountId);
   return next;
 }
 
@@ -68,6 +70,7 @@ export async function saveNote(workflowId, transitionId, text, author) {
   if (!clean.trim()) delete notes[transitionId];
   else notes[transitionId] = { text: clean, by: author?.accountId || null, at: new Date().toISOString() };
   await kvs.set(key, notes);
+  await registerAccounts(author?.accountId);
   return notes[transitionId] || null;
 }
 
@@ -90,6 +93,7 @@ export async function saveSnapshot(projectId, snapshot, byId = null) {
   index.unshift(entry);
   const removed = index.splice(MAX_SNAPSHOTS);
   await kvs.set(idxKey(projectId), index);
+  await registerAccounts(byId);
   for (const r of removed) await deleteChunks(projectId, r);
   return entry;
 }
@@ -125,6 +129,7 @@ export async function addRemediation(projectId, entries) {
   const map = await getRemediation(projectId);
   for (const e of entries) map[e.fingerprint] = { key: e.key, at: new Date().toISOString(), byId: e.byId || null };
   await kvs.set(safeKey(`rem-${projectId}`), map);
+  await registerAccounts(entries.map((e) => e.byId));
   return map;
 }
 
@@ -140,6 +145,7 @@ export async function setMonitoring(project, enabled, byId) {
   const list = (await getMonitoredProjects()).filter((p) => p.id !== project.id);
   if (enabled) list.push({ id: project.id, key: project.key, since: new Date().toISOString(), byId: byId || null });
   await kvs.set(MON_LIST, list.slice(0, 200));
+  if (enabled) await registerAccounts(byId);
   return enabled;
 }
 
@@ -157,6 +163,7 @@ export async function swapSeenFindings(accountId, projectId, keys) {
   const key = safeKey(`seenf-${accountId}-${projectId}`);
   const prev = await kvs.get(key);
   await kvs.set(key, { at: new Date().toISOString(), keys });
+  await registerAccounts(accountId);
   return prev || null;
 }
 
@@ -164,6 +171,7 @@ export async function touchLastSeen(accountId, projectId) {
   const key = safeKey(`seen-${accountId}-${projectId}`);
   const prev = await kvs.get(key);
   await kvs.set(key, new Date().toISOString());
+  await registerAccounts(accountId);
   return prev || null;
 }
 
@@ -183,6 +191,7 @@ export async function setAiEnabled(enabled, user) {
   const entry = { aiEnabled: enabled === true, at: new Date().toISOString(), by: user?.accountId || null };
   const next = { aiEnabled: entry.aiEnabled, updatedAt: entry.at, updatedBy: entry.by, history: [entry, ...prev.history].slice(0, 50) };
   await kvs.set(AI_SETTINGS, next);
+  await registerAccounts(entry.by);
   return next;
 }
 

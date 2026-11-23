@@ -1,20 +1,18 @@
 /**
- * Overview tab: health score tile, KPIs, apps and vendors in use, workflows and issue types, the governance
- * score per area and the prioritised action plan (P1-P3).
+ * Overview tab: health score tile, KPIs (workflows, rules, dependencies, apps), the prioritised action plan (P1-P3)
+ * next to the health check per area, workflows and issue types, and the apps and vendors used in rules.
  *
  * @file        static/app/src/components/Overview.jsx
  * @app         Workflow Analyzer for Jira
  * @author      George Papasotiriou
  * @company     SUPERPORT
  * @created     2026-10-24
- * @updated     2026-11-05
+ * @updated     2026-11-23
  */
 
 import { useT } from '../lib/i18n.jsx';
-import { useApp, Kpi, ScoreRing, scoreLabelKey, SevBadge, VendorBadge, EmptyState } from './common.jsx';
+import { useApp, Kpi, ScoreRing, scoreLabelKey, VendorBadge, EmptyState } from './common.jsx';
 import Icon from './Icon.jsx';
-import { describeWorkflow } from '../../../../src/shared/explain.js';
-import { findingText } from '../../../../src/shared/i18n.js';
 import { REF_TYPES } from '../../../../src/shared/rules.js';
 import { governance, actionPlan } from '../../../../src/shared/insights.js';
 
@@ -26,10 +24,14 @@ export default function Overview({ model, workflows }) {
   const s = model.stats;
   const apps = model.vendors.filter((v) => v.thirdParty);
   const maxApp = Math.max(1, ...apps.map((a) => a.total));
-  const topFindings = model.findings.filter((f) => f.severity !== 'info').slice(0, 6);
   const plan = actionPlan(model);
   const rules = s.condition + s.validator + s.postfunction;
   const gov = governance(model);
+  // Dependencies: the configuration objects the rules reference (apps have their own tile)
+  const depTypes = REF_TYPES.filter((rt) => rt !== 'app' && s.refs[rt]);
+  const deps = depTypes.reduce((n, rt) => n + s.refs[rt], 0);
+  const depsMissing = depTypes.reduce((n, rt) => n + Object.values(model.index[rt] || {}).filter((e) => e.resolved === false || e.inactive).length, 0);
+  const depsSub = [...depTypes.map((rt) => `${s.refs[rt]} ${t(`refs.${rt}`)}`), ...(depsMissing ? [`${depsMissing} ${t('im.unresolved')}`] : [])].join(' · ');
 
   return (
     <div>
@@ -44,6 +46,7 @@ export default function Overview({ model, workflows }) {
         </button>
         <Kpi value={s.workflows} label={t('ov.workflows')} sub={`${s.statuses} ${t('ov.statuses')} · ${s.transitions} ${t('ov.transitions')}`} onClick={() => actions.setTab('transitions')} />
         <Kpi value={rules} label={t('ov.rules')} sub={`${s.condition} ${t('ov.conditions')} · ${s.validator} ${t('ov.validators')} · ${s.postfunction} ${t('ov.postfunctions')}`} onClick={() => actions.setTab('transitions')} />
+        <Kpi value={deps} label={t('tab.impact')} sub={depsSub || t('ov.depsNone')} onClick={() => actions.setTab('impact')} />
         <Kpi value={s.apps} label={t('ov.apps')} sub={`${s.thirdPartyRules} ${t('ov.thirdPartyRules')}`} onClick={() => actions.openRefType('app')} />
       </section>
 
@@ -77,7 +80,7 @@ export default function Overview({ model, workflows }) {
         </section>
 
         <section className="card side" style={{ marginBottom: 0 }} aria-labelledby="ov-gov">
-          <h2 id="ov-gov">{t('gov.title')}</h2>
+          <h2 id="ov-gov">{t('tab.health')}</h2>
           <div className="stack" style={{ gap: 14 }}>
             {gov.map((g) => (
               <div key={g.key}>
@@ -155,99 +158,46 @@ export default function Overview({ model, workflows }) {
         </div>
       </section>
 
-      <div className="split" style={{ marginBottom: 20 }}>
-        <section className="card main" style={{ marginBottom: 0 }} aria-labelledby="ov-apps">
-          <h2 id="ov-apps">{t('ov.appsTitle')}</h2>
-          {apps.length === 0 && <EmptyState icon="layers" title={t('ov.appsNone')} />}
-          {apps.length > 0 && (
-            <div className="table-wrap">
-              <table className="data" style={{ minWidth: 560 }}>
-                <thead>
-                  <tr>
-                    <th>{t('ref.app')}</th>
-                    <th style={{ width: '32%' }}>{t('ov.rules')}</th>
-                    <th className="num" style={{ textAlign: 'right' }}>{t('ov.conditions')}</th>
-                    <th className="num" style={{ textAlign: 'right' }}>{t('ov.validators')}</th>
-                    <th className="num" style={{ textAlign: 'right' }}>{t('ov.postfunctions')}</th>
+      <section className="card" aria-labelledby="ov-apps">
+        <h2 id="ov-apps">{t('ov.appsTitle')}</h2>
+        {apps.length === 0 && <EmptyState icon="layers" title={t('ov.appsNone')} />}
+        {apps.length > 0 && (
+          <div className="table-wrap">
+            <table className="data" style={{ minWidth: 560 }}>
+              <thead>
+                <tr>
+                  <th>{t('ref.app')}</th>
+                  <th style={{ width: '32%' }}>{t('ov.rules')}</th>
+                  <th className="num" style={{ textAlign: 'right' }}>{t('ov.conditions')}</th>
+                  <th className="num" style={{ textAlign: 'right' }}>{t('ov.validators')}</th>
+                  <th className="num" style={{ textAlign: 'right' }}>{t('ov.postfunctions')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {apps.map((a) => (
+                  <tr key={a.key} className="clickable" onClick={() => actions.openRef('app', a.key)}>
+                    <td>
+                      <button type="button" className="link-btn" style={{ textDecoration: 'none', color: 'var(--text)' }} onClick={(e) => { e.stopPropagation(); actions.openRef('app', a.key); }}><VendorBadge vendor={a} /></button>
+                      {a.maker && <span className="muted small"> {a.maker}</span>}
+                      {a.disabled > 0 && <span className="badge disabled" style={{ marginLeft: 6 }}>{a.disabled} {t('ov.disabled')}</span>}
+                    </td>
+                    <td>
+                      <span className="meter">
+                        <span className="bar"><span style={{ width: `${(a.total / maxApp) * 100}%` }} /></span>
+                        <span className="small muted num">{a.total}</span>
+                      </span>
+                    </td>
+                    <td className="num" style={{ textAlign: 'right' }}>{a.condition}</td>
+                    <td className="num" style={{ textAlign: 'right' }}>{a.validator}</td>
+                    <td className="num" style={{ textAlign: 'right' }}>{a.postfunction}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {apps.map((a) => (
-                    <tr key={a.key} className="clickable" onClick={() => actions.openRef('app', a.key)}>
-                      <td>
-                        <button type="button" className="link-btn" style={{ textDecoration: 'none', color: 'var(--text)' }} onClick={(e) => { e.stopPropagation(); actions.openRef('app', a.key); }}><VendorBadge vendor={a} /></button>
-                        {a.maker && <span className="muted small"> {a.maker}</span>}
-                        {a.disabled > 0 && <span className="badge disabled" style={{ marginLeft: 6 }}>{a.disabled} {t('ov.disabled')}</span>}
-                      </td>
-                      <td>
-                        <span className="meter">
-                          <span className="bar"><span style={{ width: `${(a.total / maxApp) * 100}%` }} /></span>
-                          <span className="small muted num">{a.total}</span>
-                        </span>
-                      </td>
-                      <td className="num" style={{ textAlign: 'right' }}>{a.condition}</td>
-                      <td className="num" style={{ textAlign: 'right' }}>{a.validator}</td>
-                      <td className="num" style={{ textAlign: 'right' }}>{a.postfunction}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-
-        <section className="card side" style={{ marginBottom: 0 }} aria-labelledby="ov-find">
-          <div className="card-head">
-            <h2 id="ov-find">{t('ov.findingsTitle')}</h2>
-            {model.findings.length > topFindings.length && <button type="button" className="link-btn small" onClick={() => actions.setTab('health')}>{t('ov.showAll')} ({model.findings.length})</button>}
+                ))}
+              </tbody>
+            </table>
           </div>
-          {topFindings.length === 0 && <EmptyState icon="check" title={t('ov.findingsNone')} />}
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-            {topFindings.map((f) => {
-              const ft = findingText(t.lang, f);
-              return (
-                <li key={f.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 0', borderTop: '1px solid var(--border)' }}>
-                  <SevBadge sev={f.severity} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 500 }}>{ft.title}</div>
-                    <div className="small muted">{f.wfName}{f.tName ? ` › ${f.tName}` : ''}</div>
-                  </div>
-                  {f.tKey && <button type="button" className="btn small ghost" aria-label={`${t('hc.goTo')}: ${ft.title}`} onClick={() => actions.openTransition(f.tKey)}><Icon name="arrowRight" /></button>}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      </div>
-
-      <section className="card" aria-labelledby="ov-refs">
-        <h2 id="ov-refs">{t('ov.refsTitle')}</h2>
-        <div className="row" style={{ gap: 10 }}>
-          {REF_TYPES.filter((rt) => s.refs[rt]).map((rt) => {
-            const bad = Object.values(model.index[rt] || {}).filter((e) => e.resolved === false || e.inactive).length;
-            return (
-              <button key={rt} type="button" className="btn" onClick={() => actions.openRefType(rt)}>
-                <strong className="num">{s.refs[rt]}</strong> {t(`refs.${rt}`)}
-                {bad > 0 && <span className="chip bad" title={t('im.unresolved')}>{bad}</span>}
-              </button>
-            );
-          })}
-        </div>
+        )}
       </section>
 
-      {workflows.length <= 6 && (
-        <section className="card" aria-labelledby="ov-sum">
-          <h2 id="ov-sum" className="ai-badge" style={{ fontSize: 17 }}><Icon name="sparkle" size={18} />{t('ov.summaryTitle')}</h2>
-          <div className="stack">
-            {workflows.map((wf) => (
-              <div key={wf.id} className="note-box">
-                <p style={{ margin: '0 0 4px', fontWeight: 500 }}>{wf.name}</p>
-                <p style={{ margin: 0, maxWidth: '75ch' }}>{describeWorkflow(model, wf, t.lang).join(' ')}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   );
 }

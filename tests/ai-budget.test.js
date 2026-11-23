@@ -212,6 +212,18 @@ test('an invalid AI_BUDGET falls back to the defaults and the app keeps working'
 
 // ------------------------------------------------------------------ per-site caps
 
+test('site unknown (serverInfo fails): the strictest limits of any site apply, so a limited site stays limited', async () => {
+  const { j } = scenario();
+  mock.method(console, 'warn', () => {});
+  setBudget({ eurPerMonth: 20, sites: { 'off.atlassian.net': 0 } });
+  j.faults.push({ match: /serverInfo/, status: 500, times: -1 });
+  assert.equal((await call('aiAsk', { question: 'q' })).error, 'AI_STOPPED');
+  j.faults = [];
+  state.invocationId = 'inv-known';
+  state.llm = [answer()];
+  assert.equal((await ok('aiAsk', { question: 'q' })).answer, 'answer', 'this site is not the limited one');
+});
+
 test('per-site caps: this site (host from serverInfo) gets its own limits, other sites the app-wide ones', async () => {
   const { j } = scenario();
   setBudget({ callsPerMonth: 1000, tokensPerMonth: 2_000_000, siteCaps: { 'bigcorp.atlassian.net': { callsPerMonth: 5000 }, 'blocked.atlassian.net': { tokensPerMonth: 0 } } });
@@ -257,7 +269,7 @@ test('the site host is only looked up when AI_BUDGET has per-site caps, and a fa
   setBudget({ callsPerMonth: 10, siteCaps: { 'fake.atlassian.net': { callsPerMonth: 20 } } });
   j.faults.push({ match: /serverInfo/, status: 500, times: -1 });
   state.kvs.set(usageKey(), { calls: 10, tokens: 0 });
-  assert.equal((await call('aiAsk', { question: 'q' })).error, 'AI_LIMIT', 'host unknown: app-wide 10 calls');
+  assert.equal((await call('aiAsk', { question: 'q' })).error, 'AI_LIMIT', 'host unknown: the strictest limit, 10 calls');
   j.faults = [];
   state.invocationId = 'inv-next';
   state.llm = [answer()];

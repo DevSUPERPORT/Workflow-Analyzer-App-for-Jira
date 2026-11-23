@@ -21,6 +21,7 @@
 import { route } from '@forge/api';
 import { jira, approximateCount } from './jira.js';
 import { kvs } from '@forge/kvs';
+import { registerAccounts } from './accounts.js';
 
 export const KINDS = {
   doneUnresolved: 'statusCategory = Done AND resolution is EMPTY',
@@ -216,5 +217,6 @@ export async function recordRun(scope, { runId, kind, byId, undoOf, results }) {
     if (orig) orig.undoneBy = runId;
   }
   await kvs.set(logKey(scope), runs.slice(0, MAX_RUNS));
+  await registerAccounts(run.byId);
   return run;
 }
