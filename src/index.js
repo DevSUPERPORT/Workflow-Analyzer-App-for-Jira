@@ -4,14 +4,15 @@
  * Every resolver passes the SUPERPORT kill switch first (explicit READS allow-list, everything else is a write),
  * then checks the caller's role on the server. AI entry points (aiAsk, aiPlan, siteBulkAi, every Rovo action) also
  * pass SUPERPORT's AI budget (AI_BUDGET, set through App Status: stop and monthly limits) and the per-site AI
- * switch, which is off until a Jira admin turns it on (getAiSettings / setAiSettings).
+ * switch, which is off until a Jira admin turns it on (getAiSettings / setAiSettings). Paid via Atlassian: on a
+ * site without an active Marketplace licence every resolver and Rovo action is refused (lib/license.js).
  *
  * @file        src/index.js
  * @app         Workflow Analyzer for Jira
  * @author      George Papasotiriou
  * @company     SUPERPORT
  * @created     2026-10-24
- * @updated     2026-11-16
+ * @updated     2026-11-23
  */
 
 import Resolver from '@forge/resolver';
@@ -30,6 +31,7 @@ import { normalize, clearingSelfTransitions } from './shared/engine.js';
 import { makeSnapshot } from './shared/snapshot.js';
 import * as rovo from './rovo.js';
 import { maintenanceMode, requireAvailable, STATUS_PAGE_URL, UnavailableError } from './lib/maintenance.js';
+import { requireLicense, isLicenseInactive, LicenseError } from './lib/license.js';
 
 // ---------------------------------------------------------------- Rovo actions (kill switch first)
 
@@ -42,10 +44,11 @@ function rovoAction(kind, fn) {
   return async (payload, context) => {
     try {
       requireAvailable(kind);
+      requireLicense(context, payload?.language);
       await requireAiEnabled(payload?.language);
       return await fn(payload, context);
     } catch (e) {
-      if (e instanceof UnavailableError || isAiError(e)) return { error: e.message };
+      if (e instanceof UnavailableError || e instanceof LicenseError || isAiError(e)) return { error: e.message };
       throw e;
     }
   };
@@ -95,6 +98,7 @@ function wrap(name, fn) {
     } catch (e) {
       if (e instanceof UnavailableError) return { ok: false, error: e.code, mode: e.mode, message: e.message };
       if (e instanceof ForbiddenError) return { ok: false, error: e.code };
+      if (e instanceof LicenseError) return { ok: false, error: e.code, message: e.message };
       if (e?.code === 'SHARED_CONFIRM' || e?.code === 'ROLLBACK_CONFIRM' || e?.code === 'AI_UNAVAILABLE' || e?.code === 'NOTHING_TO_FIX' || isAiError(e)) return { ok: false, error: e.code, message: e.message };
       console.error(`[${name}]`, e?.status || '', e?.message || e);
       return { ok: false, error: 'FAILED', status: e?.status || null, message: String(e?.message || e).slice(0, 500) };
@@ -102,10 +106,14 @@ function wrap(name, fn) {
   };
 }
 
-/** Every resolver passes the kill switch first (see lib/maintenance.js), before any permission check or Jira call. */
+/**
+ * Every resolver passes the kill switch first (see lib/maintenance.js), then the Marketplace licence
+ * (lib/license.js), before any permission check or Jira call.
+ */
 function define(name, fn) {
   resolver.define(name, wrap(name, async (payload, context) => {
     requireAvailable(READS.has(name) ? 'read' : 'write');
+    requireLicense(context, payload?.lang);
     return fn(payload, context);
   }));
 }
@@ -113,7 +121,7 @@ function define(name, fn) {
 /** The UI asks first, so it can show "temporarily unavailable" or "read-only" before loading anything. */
 resolver.define('availability', wrap('availability', async (_p, context) => {
   if (!context?.accountId) throw new ForbiddenError('FORBIDDEN');
-  return { mode: maintenanceMode(), statusUrl: STATUS_PAGE_URL };
+  return { mode: maintenanceMode(), statusUrl: STATUS_PAGE_URL, licensed: !isLicenseInactive(context.license) };
 }));
 
 async function me() {

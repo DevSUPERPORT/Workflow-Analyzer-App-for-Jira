@@ -309,7 +309,8 @@ export const en2 = {
   'aiset.enable': 'Turn on',
   'aiset.disable': 'Turn off',
   'aiset.usage': 'This month: {calls} / {maxCalls} AI requests · {tokens} / {maxTokens} tokens',
-  'aiset.usageHint': 'Quota per site and calendar month (UTC), set by SUPERPORT, available again from the 1st.',
+  'aiset.spend': 'AI budget this month: {eur} / {maxEur}',
+  'aiset.usageHint': 'Quota per site and calendar month (UTC), included in your subscription and set by SUPERPORT, available again from the 1st.',
   'aiset.stopped': 'Temporarily turned off by the app vendor. Your setting is kept.',
   'aiset.changed': 'Last changed {date} by {name}',
 
@@ -769,7 +770,8 @@ export const de2 = {
   'aiset.enable': 'Aktivieren',
   'aiset.disable': 'Deaktivieren',
   'aiset.usage': 'Diesen Monat: {calls} / {maxCalls} KI-Anfragen · {tokens} / {maxTokens} Tokens',
-  'aiset.usageHint': 'Kontingent je Site und Kalendermonat (UTC), von SUPERPORT festgelegt, ab dem 1. wieder verfügbar.',
+  'aiset.spend': 'KI-Budget diesen Monat: {eur} / {maxEur}',
+  'aiset.usageHint': 'Kontingent je Site und Kalendermonat (UTC), im Abonnement enthalten und von SUPERPORT festgelegt, ab dem 1. wieder verfügbar.',
   'aiset.stopped': 'Vorübergehend vom App-Anbieter ausgeschaltet. Ihre Einstellung bleibt gespeichert.',
   'aiset.changed': 'Zuletzt geändert am {date} von {name}',
 

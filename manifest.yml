@@ -1,14 +1,14 @@
 # Forge manifest of the Workflow Analyzer: the project settings page and the site-wide admin page (Custom UI),
 # the "Workflow Analyst" Rovo agent with its actions, the Forge LLM module, the daily monitoring trigger,
-# translations and the five minimal scopes. Every function key here maps to a handler exported from
-# src/index.js.
+# translations, the five minimal scopes and Marketplace licensing (paid via Atlassian). Every function key here maps
+# to a handler exported from src/index.js.
 #
 # @file        manifest.yml
 # @app         Workflow Analyzer for Jira
 # @author      George Papasotiriou
 # @company     SUPERPORT
 # @created     2026-10-24
-# @updated     2026-11-05
+# @updated     2026-11-23
 
 app:
   id: ari:cloud:ecosystem::app/66b30dff-8536-4de6-8630-65f355b28bcc
@@ -16,6 +16,10 @@ app:
     name: nodejs22.x
     memoryMB: 512
     architecture: arm64
+  # Paid via Atlassian: Forge passes context.license; src/lib/license.js refuses every request on a site without an
+  # active licence, and the daily monitor runs only on licensed sites (filter.appIsLicensed below).
+  licensing:
+    enabled: true
 
 modules:
   jira:projectSettingsPage:
@@ -477,6 +481,8 @@ modules:
     - key: workflow-monitor-daily
       function: monitor
       interval: day
+      filter:
+        appIsLicensed: true
 
   function:
     - key: resolver

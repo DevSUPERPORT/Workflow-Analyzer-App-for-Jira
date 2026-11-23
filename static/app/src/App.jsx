@@ -16,10 +16,10 @@ import { view } from '@forge/bridge';
 import { LangContext, readStoredLang, storeLang } from './lib/i18n.jsx';
 import { t as translate, normalizeLang, formatDate } from '../../../src/shared/i18n.js';
 import { normalize, searchModel, collectRawRefs } from '../../../src/shared/engine.js';
-import { call, setMaintenanceMode, onMaintenanceRefusal } from './lib/api.js';
+import { call, setMaintenanceMode, onMaintenanceRefusal, onLicenseRefusal } from './lib/api.js';
 import { effectiveAi, fetchEffectiveAi, AI_RECHECK_MS } from './lib/aiState.js';
 import { AppContext, Skeleton } from './components/common.jsx';
-import { Unavailable, ReadonlyBanner } from './components/Maintenance.jsx';
+import { Unavailable, Unlicensed, ReadonlyBanner } from './components/Maintenance.jsx';
 import Icon from './components/Icon.jsx';
 import Overview from './components/Overview.jsx';
 import Diagram from './components/Diagram.jsx';
@@ -112,7 +112,18 @@ export default function App() {
       if (!background) toast(tRef.current('maint.readonlyToast'));
       return tRef.current('maint.readonlyToast');
     });
-    return () => onMaintenanceRefusal(null);
+    // The licence ended while the page was open: the same full-page notice as on start-up
+    onLicenseRefusal(() => {
+      setBundle(null);
+      setDrawer(null);
+      setTourOpen(false);
+      setRemFindings(null);
+      setPhase('unlicensed');
+    });
+    return () => {
+      onMaintenanceRefusal(null);
+      onLicenseRefusal(null);
+    };
   }, [toast]);
 
   const setLang = (l) => {
@@ -198,11 +209,11 @@ export default function App() {
         setCtx(c);
         setMaintenanceMode(av.mode);
         setMaint({ mode: av.mode, statusUrl: av.statusUrl || STATUS_PAGE_URL });
-        if (av.mode === 'on') {
+        if (av.mode === 'on' || av.licensed === false) {
           const l = readStoredLang() || normalizeLang(c.locale);
           setLangState(l);
           document.documentElement.lang = l;
-          return setPhase('unavailable');
+          return setPhase(av.mode === 'on' ? 'unavailable' : 'unlicensed');
         }
         const b = await call('bootstrap');
         setBoot(b);
@@ -219,6 +230,7 @@ export default function App() {
         return loadProject();
       } catch (e) {
         if (e?.code === 'UNAVAILABLE') return setPhase('unavailable');
+        if (e?.code === 'LICENSE_INACTIVE') return setPhase('unlicensed');
         lastError = e;
         if (e?.code?.startsWith?.('FORBIDDEN')) break;
         await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
@@ -536,6 +548,7 @@ export default function App() {
         <main className="page">
           {maint.mode === 'readonly' && phase !== 'unavailable' && <ReadonlyBanner statusUrl={maint.statusUrl} t={t} />}
           {phase === 'unavailable' && <Unavailable statusUrl={maint.statusUrl} t={t} />}
+          {phase === 'unlicensed' && <Unlicensed t={t} />}
 
           {(phase === 'boot' || phase === 'loading') && <LoadingState t={t} />}
 

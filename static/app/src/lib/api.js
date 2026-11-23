@@ -39,6 +39,11 @@ export function onMaintenanceRefusal(fn) {
   maintenance.onRefused = fn;
 }
 
+/** Called when the server refuses a call because the site's Marketplace licence is not active (LICENSE_INACTIVE). */
+export function onLicenseRefusal(fn) {
+  maintenance.onUnlicensed = fn;
+}
+
 export async function call(name, payload = {}) {
   if (maintenance.mode === 'readonly' && BACKGROUND.has(name)) {
     const e = new ApiError('UNAVAILABLE');
@@ -53,6 +58,7 @@ export async function call(name, payload = {}) {
       const text = maintenance.onRefused?.(e, name, BACKGROUND.has(name));
       if (text) e.message = text;
     }
+    if (e.code === 'LICENSE_INACTIVE') maintenance.onUnlicensed?.(e, name);
     throw e;
   }
   return res.data;

@@ -7,7 +7,7 @@
  * @author      George Papasotiriou
  * @company     SUPERPORT
  * @created     2026-10-24
- * @updated     2026-11-05
+ * @updated     2026-11-23
  */
 
 import { router } from '@forge/bridge';
@@ -39,6 +39,30 @@ export function Unavailable({ statusUrl, t }) {
         <p className="muted">{t('maint.body')}</p>
         <button type="button" className="btn primary" onClick={() => openStatus(statusUrl)}>
           {t('maint.status')}<Icon name="external" />
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/** Full-page notice on a site without an active Marketplace licence (server: lib/license.js). */
+export function Unlicensed({ t }) {
+  const manage = async () => {
+    try {
+      await router.open('/plugins/servlet/upm');
+    } catch { /* outside Jira: nothing to open */ }
+  };
+  return (
+    <section className="card view maint" role="status" aria-live="polite">
+      <div className="empty-state maint-body">
+        <div className="maint-mark" aria-hidden="true">
+          <Icon name="lock" size={34} />
+        </div>
+        <span className="maint-pill"><span className="dot" aria-hidden="true" />{t('lic.badge')}</span>
+        <h2>{t('lic.title')}</h2>
+        <p className="muted">{t('lic.inactive')}</p>
+        <button type="button" className="btn primary" onClick={manage}>
+          {t('lic.manage')}<Icon name="external" />
         </button>
       </div>
     </section>

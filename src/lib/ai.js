@@ -2,22 +2,22 @@
  * In-app AI on Forge LLMs (Claude, runs on Atlassian), so the Copilot works without Rovo. Picks the best
  * available model, answers questions about a workflow and turns a plain-language request into Autopilot
  * operations via a JSON tool schema. Every call passes SUPERPORT's AI budget (Forge variable AI_BUDGET, set through
- * App Status: stop and monthly limits, lib/aiBudget.js), the per-site AI switch (off by default, Jira admins turn it
- * on) and the monthly Forge LLM quota first, and is counted afterwards.
+ * App Status: stop, EUR per month – 20 by default – and the calls / tokens caps, lib/aiBudget.js), the per-site AI
+ * switch (off by default, Jira admins turn it on) and this month's meter first, and is priced and counted afterwards.
  *
  * @file        src/lib/ai.js
  * @app         Workflow Analyzer for Jira
  * @author      George Papasotiriou
  * @company     SUPERPORT
  * @created     2026-10-24
- * @updated     2026-11-16
+ * @updated     2026-11-23
  */
 
 import { chat, list } from '@forge/llm';
 import { OPS_JSON_SCHEMA, opsDocumentation } from '../shared/autopilot.js';
 import { t, normalizeLang } from '../shared/i18n.js';
 import { getAiSettings, getLlmUsage, addLlmUsage, usageMonth } from './store.js';
-import { aiBudget, effectiveCaps, hasSiteCaps } from './aiBudget.js';
+import { aiBudget, siteBudget, hasSiteCaps, costEur, pricedTokens, STOP_AT } from './aiBudget.js';
 import { siteHost } from './jira.js';
 
 const PREFERRED = ['claude-sonnet-5', 'claude-opus-5', 'claude-sonnet-4-6', 'claude-opus-4-6', 'claude-sonnet-4-5-20250929', 'claude-sonnet-4-20250514', 'claude-haiku-4-5-20251001'];
@@ -60,18 +60,18 @@ export class AiError extends Error {
 export const isAiError = (e) => e instanceof AiError;
 
 /**
- * This site's caps from AI_BUDGET: { stop, callsPerMonth, tokensPerMonth }. The site host is only looked up when
- * AI_BUDGET has per-site caps; if that lookup fails the app-wide values apply.
+ * This site's caps from AI_BUDGET: { stop, callsPerMonth, tokensPerMonth, eurPerMonth, eurPerUsd }. The site host is
+ * only looked up when AI_BUDGET has per-site values; if that lookup fails the app-wide values apply.
  */
 export async function aiCaps(budget = aiBudget()) {
-  if (!hasSiteCaps(budget)) return effectiveCaps(budget, null);
+  if (!hasSiteCaps(budget)) return siteBudget(budget, null);
   let host = null;
   try {
     host = await siteHost();
   } catch (e) {
     console.warn('[ai-budget] site host unknown, app-wide limits apply:', e?.message || e);
   }
-  return effectiveCaps(budget, host);
+  return siteBudget(budget, host);
 }
 
 /**
@@ -88,11 +88,16 @@ export async function requireAiEnabled(lang) {
   return caps;
 }
 
-/** Usage of the current month against this site's limits (for the admin settings card and the quota check). */
+/**
+ * Usage of the current month against this site's limits (for the admin settings card and the quota check). The EUR
+ * budget counts as used up from 98 % (STOP_AT), so a burst of parallel calls can't run far past it.
+ */
 export async function aiUsage(month = usageMonth(), caps = null) {
   const c = caps || (await aiCaps());
   const u = await getLlmUsage(month);
-  return { ...u, limits: { calls: c.callsPerMonth, tokens: c.tokensPerMonth }, exhausted: u.calls >= c.callsPerMonth || u.tokens >= c.tokensPerMonth };
+  const eurLimit = Number.isFinite(c.eurPerMonth) ? c.eurPerMonth : Infinity;
+  const spent = eurLimit === Infinity ? false : u.eur >= eurLimit * STOP_AT;
+  return { ...u, eur: Math.round(u.eur * 10000) / 10000, limits: { calls: c.callsPerMonth, tokens: c.tokensPerMonth }, eurLimit: eurLimit === Infinity ? null : eurLimit, exhausted: u.calls >= c.callsPerMonth || u.tokens >= c.tokensPerMonth || spent };
 }
 
 /** prompt + completion tokens of a Forge LLM response (0 when the response reports no usage). */
@@ -101,6 +106,7 @@ export function usageTokens(usage) {
   const io = (Number(usage.input_tokens ?? usage.prompt_tokens) || 0) + (Number(usage.output_tokens ?? usage.completion_tokens) || 0);
   return io || Number(usage.total_tokens) || 0;
 }
+
 
 async function complete(messages, extra = {}, lang = 'en') {
   // Gate and quota are checked before the model is called; the call is counted once it returned
@@ -121,7 +127,10 @@ async function complete(messages, extra = {}, lang = 'en') {
     err.code = 'AI_UNAVAILABLE';
     throw err;
   }
-  await addLlmUsage(usage.month, usageTokens(res?.usage)).catch((e) => console.error('[ai] usage not recorded', e?.message || e));
+  const msg = res?.choices?.[0]?.message || {};
+  const answerChars = text(msg.content).length + JSON.stringify(msg.tool_calls || '').length;
+  const eur = costEur(model, pricedTokens(res?.usage, JSON.stringify(req.messages).length, answerChars), caps.eurPerUsd);
+  await addLlmUsage(usage.month, usageTokens(res?.usage), eur).catch((e) => console.error('[ai] usage not recorded', e?.message || e));
   return { res, model };
 }
 

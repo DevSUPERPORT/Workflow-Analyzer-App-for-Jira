@@ -49,6 +49,10 @@ const en = {
   'maint.statusShort': 'Status page',
   'maint.readonly': 'Changes are paused for maintenance to keep your data safe. You can still view everything; editing will be back as soon as possible.',
   'maint.readonlyToast': 'Changes are paused for maintenance to keep your data safe. Please try again later.',
+  'lic.badge': 'Licence not active',
+  'lic.title': 'Workflow Analyzer for Jira needs an active licence',
+  'lic.inactive': 'The Workflow Analyzer for Jira licence for this site is not active. A Jira administrator can start a free trial or subscribe under Apps › Manage your apps. Your saved data is kept.',
+  'lic.manage': 'Manage apps',
 
   // Tabs
   'tab.overview': 'Overview',
@@ -527,6 +531,10 @@ const de = {
   'maint.statusShort': 'Statusseite',
   'maint.readonly': 'Änderungen sind zu Ihrem Schutz wegen Wartungsarbeiten pausiert. Sie können weiterhin alles ansehen; Bearbeiten ist so schnell wie möglich wieder möglich.',
   'maint.readonlyToast': 'Änderungen sind zu Ihrem Schutz wegen Wartungsarbeiten pausiert. Bitte versuchen Sie es später noch einmal.',
+  'lic.badge': 'Lizenz nicht aktiv',
+  'lic.title': 'Workflow Analyzer for Jira benötigt eine aktive Lizenz',
+  'lic.inactive': 'Die Lizenz von Workflow Analyzer for Jira ist für diese Site nicht aktiv. Ein Jira-Administrator kann unter Apps › Apps verwalten eine kostenlose Testversion starten oder ein Abonnement abschließen. Ihre gespeicherten Daten bleiben erhalten.',
+  'lic.manage': 'Apps verwalten',
 
   'tab.overview': 'Übersicht',
   'tab.diagram': 'Diagramm',

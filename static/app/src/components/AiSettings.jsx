@@ -8,7 +8,7 @@
  * @author      George Papasotiriou
  * @company     SUPERPORT
  * @created     2026-11-16
- * @updated     2026-11-16
+ * @updated     2026-11-23
  */
 
 import { useEffect, useState } from 'react';
@@ -41,7 +41,9 @@ export default function AiSettings({ onChange, style }) {
     }
   };
 
-  const n = (v) => Number(v || 0).toLocaleString(t.lang === 'de' ? 'de-DE' : 'en-US');
+  const locale = t.lang === 'de' ? 'de-DE' : 'en-US';
+  const n = (v) => Number(v || 0).toLocaleString(locale);
+  const eur = (v) => Number(v || 0).toLocaleString(locale, { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const u = s?.usage;
   return (
     <section className="card" style={style} aria-labelledby="ai-settings-title">
@@ -55,6 +57,7 @@ export default function AiSettings({ onChange, style }) {
             {s.stopped && <div className="alert info" role="status" style={{ marginTop: 8 }}><Icon name="lock" size={18} /><span className="small">{t('aiset.stopped')}</span></div>}
             {u && (
               <div className="small" style={{ marginTop: 6 }}>
+                {u.eurLimit != null && <div>{t('aiset.spend', { eur: eur(u.eur), maxEur: eur(u.eurLimit) })}</div>}
                 {t('aiset.usage', { calls: n(u.calls), maxCalls: n(u.limits?.calls), tokens: n(u.tokens), maxTokens: n(u.limits?.tokens) })}
                 <span className="muted"> · {t('aiset.usageHint')}</span>
               </div>

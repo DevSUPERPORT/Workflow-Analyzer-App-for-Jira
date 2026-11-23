@@ -203,7 +203,8 @@ test('month rollover: the quota is per calendar month in UTC and is available ag
   mock.timers.setTime(new Date('2026-12-01T00:00:00.000Z').getTime());
   state.llm = [answer({ input_tokens: 20, output_tokens: 2 })];
   assert.equal((await ok('aiAsk', { question: 'q' })).answer, 'answer');
-  assert.deepEqual({ ...state.kvs.get('llm-usage:2026-12'), updatedAt: undefined }, { calls: 1, tokens: 22, updatedAt: undefined });
+  assert.deepEqual({ ...state.kvs.get('llm-usage:2026-12'), updatedAt: undefined, eur: undefined }, { calls: 1, tokens: 22, updatedAt: undefined, eur: undefined });
+  assert.ok(state.kvs.get('llm-usage:2026-12').eur > 0, 'the answer is priced in EUR');
   assert.equal(state.kvs.get('llm-usage:2026-11').calls, MONTHLY_LLM_CALLS, 'last month is left as it was');
   const u = (await ok('getAiSettings', {}, ctxSite())).usage;
   assert.equal(u.month, '2026-12');

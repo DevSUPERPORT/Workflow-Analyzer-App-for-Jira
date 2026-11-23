@@ -15,7 +15,7 @@
  */
 
 import { makeProcurementBundle } from '../../../../tests/fixtures/procurement.js';
-import { parseAiBudget, effectiveCaps } from '../../../../src/lib/aiBudget.js';
+import { parseAiBudget, siteBudget } from '../../../../src/lib/aiBudget.js';
 
 const isSite = () => /^#admin/.test(window.location.hash);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -115,15 +115,16 @@ function aiCaps() {
   try { json = raw ? decodeURIComponent(raw) : ''; } catch { /* malformed: defaults */ }
   const { budget, error } = parseAiBudget(json);
   if (error) console.warn('[mock] #budget ignored:', error);
-  const caps = effectiveCaps(budget, MOCK_HOST);
+  const caps = siteBudget(budget, MOCK_HOST);
   return aiHash() === 'stopped' ? { ...caps, stop: true } : caps;
 }
 const aiOn = (s) => (aiHash() && aiHash() !== 'stopped' ? aiHash() !== 'off' : s.aiEnabled === true);
 function aiUsage(s, c = aiCaps()) {
   const month = new Date().toISOString().slice(0, 7);
   const limits = { calls: c.callsPerMonth, tokens: c.tokensPerMonth };
-  const u = aiHash() === 'limit' ? { calls: limits.calls, tokens: Math.floor(limits.tokens * 0.87) } : s.llmUsage?.month === month ? s.llmUsage : { calls: 0, tokens: 0 };
-  return { month, calls: u.calls, tokens: u.tokens, limits, exhausted: u.calls >= limits.calls || u.tokens >= limits.tokens };
+  const u = aiHash() === 'limit' ? { calls: Math.floor(limits.calls * 0.4), tokens: Math.floor(limits.tokens * 0.37), eur: c.eurPerMonth * 0.985 } : s.llmUsage?.month === month ? s.llmUsage : { calls: 0, tokens: 0, eur: 0 };
+  const eur = Math.round((u.eur || 0) * 10000) / 10000;
+  return { month, calls: u.calls, tokens: u.tokens, eur, eurLimit: c.eurPerMonth, limits, exhausted: u.calls >= limits.calls || u.tokens >= limits.tokens || eur >= c.eurPerMonth * 0.98 };
 }
 const AI_TEXT = {
   AI_STOPPED: { de: 'Die KI-Funktionen sind vorübergehend vom App-Anbieter ausgeschaltet. Bitte versuchen Sie es später erneut.', en: 'AI features are temporarily turned off by the app vendor. Please try again later.' },
@@ -135,7 +136,8 @@ function aiGate(s, lang) {
   const code = aiCaps().stop ? 'AI_STOPPED' : !aiOn(s) ? 'AI_DISABLED' : aiUsage(s).exhausted ? 'AI_LIMIT' : null;
   if (code) return { ok: false, error: code, message: AI_TEXT[code][lang === 'de' ? 'de' : 'en'] };
   const u = aiUsage(s);
-  s.llmUsage = { month: u.month, calls: u.calls + 1, tokens: u.tokens + 2400 + Math.floor(Math.random() * 1800) };
+  const tok = 2400 + Math.floor(Math.random() * 1800);
+  s.llmUsage = { month: u.month, calls: u.calls + 1, tokens: u.tokens + tok, eur: (u.eur || 0) + (tok * 0.8 * 3 + tok * 0.2 * 15) / 1e6 };
   save(s);
   return null;
 }
@@ -143,7 +145,9 @@ function aiGate(s, lang) {
 export async function invoke(name, payload = {}) {
   await wait(name === 'getProjectData' ? 500 : 120);
   const mode = maintenanceMode();
-  if (name === 'availability') return ok({ mode, statusUrl: STATUS_URL });
+  const unlicensed = /license=inactive/.test(window.location.hash);
+  if (name === 'availability') return ok({ mode, statusUrl: STATUS_URL, licensed: !unlicensed });
+  if (unlicensed) return { ok: false, error: 'LICENSE_INACTIVE', message: 'The Workflow Analyzer for Jira licence for this site is not active.' };
   if (mode === 'on') return { ok: false, error: 'UNAVAILABLE', mode, message: `Workflow Analyzer for Jira is temporarily unavailable. We've paused it for maintenance to keep your data safe. Status page: ${STATUS_URL}` };
   if (mode === 'readonly' && !MOCK_READS.has(name)) return { ok: false, error: 'UNAVAILABLE', mode, message: `Changes are paused for maintenance to keep your data safe. Status page: ${STATUS_URL}` };
   const s = load();

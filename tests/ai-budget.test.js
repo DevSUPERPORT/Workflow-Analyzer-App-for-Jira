@@ -15,7 +15,7 @@ import { test, mock, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { state, app, scenario, ctxProject, ctxSite, call, ok } from './support/harness.js';
 import { MONTHLY_LLM_CALLS, MONTHLY_LLM_TOKENS } from '../src/lib/aiLimits.js';
-import { parseAiBudget, aiBudget, effectiveCaps, DEFAULT_AI_BUDGET } from '../src/lib/aiBudget.js';
+import { parseAiBudget, aiBudget, effectiveCaps, siteBudget, costEur, priceOf, pricedTokens, DEFAULT_AI_BUDGET, EUR_PER_MONTH } from '../src/lib/aiBudget.js';
 
 const STOP_EN = 'AI features are temporarily turned off by the app vendor. Please try again later.';
 const STOP_DE = 'Die KI-Funktionen sind vorübergehend vom App-Anbieter ausgeschaltet. Bitte versuchen Sie es später erneut.';
@@ -56,7 +56,10 @@ test('unset or empty AI_BUDGET: the aiLimits.js defaults, no warning', () => {
   }
   assert.deepEqual(effectiveCaps(aiBudget({})), DEFAULTS);
   assert.deepEqual(effectiveCaps(), DEFAULTS);
-  assert.deepEqual({ ...DEFAULT_AI_BUDGET, siteCaps: undefined }, { ...DEFAULTS, siteCaps: undefined });
+  const { stop, callsPerMonth, tokensPerMonth } = DEFAULT_AI_BUDGET;
+  assert.deepEqual({ stop, callsPerMonth, tokensPerMonth }, DEFAULTS);
+  assert.equal(DEFAULT_AI_BUDGET.eurPerMonth, 20, 'SUPERPORT pays at most 20 EUR per site and month by default');
+  assert.equal(siteBudget(parseAiBudget(undefined).budget, 'any.atlassian.net').eurPerMonth, EUR_PER_MONTH);
 });
 
 test('the documented example parses, unknown keys are ignored', () => {
@@ -259,4 +262,57 @@ test('the site host is only looked up when AI_BUDGET has per-site caps, and a fa
   state.invocationId = 'inv-next';
   state.llm = [answer()];
   assert.equal((await ok('aiAsk', { question: 'q' })).answer, 'answer', 'host known: the site cap of 20 applies');
+});
+
+// ------------------------------------------------------------------ EUR budget (kind "eur")
+
+test('the EUR fields App Status writes parse; sites override eurPerMonth; 0 EUR turns the AI off', () => {
+  const raw = '{"eurPerMonth":20,"eurPerUsd":1,"dailyPerPerson":60,"stop":false,"sites":{"bigcorp.atlassian.net":100,"off.atlassian.net":0},"callsPerMonth":1000,"tokensPerMonth":2000000,"siteCaps":{}}';
+  const { budget, error } = parseAiBudget(raw);
+  assert.equal(error, null);
+  assert.deepEqual(siteBudget(budget, 'other.atlassian.net'), { ...DEFAULTS, eurPerMonth: 20, eurPerUsd: 1 });
+  assert.deepEqual(siteBudget(budget, 'https://BigCorp.atlassian.net/'), { ...DEFAULTS, eurPerMonth: 100, eurPerUsd: 1 });
+  assert.equal(siteBudget(budget, 'off.atlassian.net').stop, true);
+  assert.equal(siteBudget(parseAiBudget('{"eurPerMonth":0}').budget).stop, true);
+  assert.equal(siteBudget(parseAiBudget('{"eurPerMonth":7.5,"eurPerUsd":0.92}').budget).eurPerMonth, 7.5);
+  for (const bad of ['{"eurPerMonth":-1}', '{"eurPerMonth":"20"}', '{"eurPerUsd":3}', '{"dailyPerPerson":0}', '{"sites":[]}', '{"sites":{"BigCorp":5}}', '{"sites":{"bigcorp.atlassian.net":-2}}']) {
+    const r = parseAiBudget(bad);
+    assert.ok(r.error, bad);
+    assert.equal(siteBudget(r.budget).eurPerMonth, 20, bad);
+  }
+});
+
+test('pricing: Atlassian prices per model, unknown models at the highest price, missing usage estimated', () => {
+  assert.deepEqual(priceOf('claude-sonnet-5'), { inUsd: 3, outUsd: 15 });
+  assert.deepEqual(priceOf('claude-haiku-4-5-20251001'), { inUsd: 1, outUsd: 5 });
+  assert.deepEqual(priceOf('mystery-model'), { inUsd: 5, outUsd: 25 });
+  assert.equal(costEur('claude-sonnet-5', { inTok: 1_000_000, outTok: 1_000_000 }), 18);
+  assert.equal(costEur('claude-sonnet-5', { inTok: 1_000_000, outTok: 0 }, 0.5), 1.5);
+  assert.deepEqual(pricedTokens({ input_tokens: 10, output_tokens: 4 }, 999, 999), { inTok: 10, outTok: 4 });
+  assert.deepEqual(pricedTokens({ prompt_tokens: 7, completion_tokens: 2 }), { inTok: 7, outTok: 2 });
+  assert.deepEqual(pricedTokens(null, 300, 30), { inTok: 100, outTok: 10 });
+});
+
+test('the EUR budget stops new AI calls from 98 % until the next month; the meter adds every answer', async () => {
+  scenario();
+  setBudget({ eurPerMonth: 20 });
+  state.kvs.set(usageKey(), { calls: 3, tokens: 100, eur: 19.5 });
+  state.llm = [answer()];
+  assert.equal((await ok('aiAsk', { question: 'q' })).answer, 'answer', '97.5 %: still allowed');
+  const after = state.kvs.get(usageKey());
+  assert.equal(after.calls, 4);
+  assert.ok(after.eur > 19.5, 'the answer was priced and added');
+  state.kvs.set(usageKey(), { calls: 4, tokens: 100, eur: 19.6 });
+  state.llm = [answer()];
+  for (const [name, payload, ctx] of AI_RESOLVERS) assert.equal((await call(name, { ...payload }, ctx)).error, 'AI_LIMIT', name);
+  assert.equal(state.llm.length, 1, 'the model was not called');
+  const s = await ok('getAiSettings', {}, ctxSite());
+  assert.equal(s.usage.exhausted, true);
+  assert.equal(s.usage.eurLimit, 20);
+  assert.equal(s.usage.eur, 19.6);
+  // SUPERPORT raises this site's budget: AI works again at once
+  setBudget({ eurPerMonth: 20, sites: { 'superportdev.atlassian.net': 50, 'fake.atlassian.net': 50 } });
+  state.invocationId = 'inv-raised';
+  const raised = await ok('getAiSettings', {}, ctxSite());
+  assert.equal(raised.usage.exhausted, false, JSON.stringify(raised.usage));
 });

@@ -190,13 +190,15 @@ const usageKey = (month) => `llm-usage:${month}`;
 
 export async function getLlmUsage(month = usageMonth()) {
   const u = (await kvs.get(usageKey(month))) || {};
-  return { month, calls: Number(u.calls) || 0, tokens: Number(u.tokens) || 0 };
+  return { month, calls: Number(u.calls) || 0, tokens: Number(u.tokens) || 0, eur: Number(u.eur) || 0 };
 }
 
-/** Counts one Forge LLM call and its tokens (0 when the response reported no usage). */
-export async function addLlmUsage(month, tokens) {
+const round6 = (v) => Math.round(v * 1e6) / 1e6;
+
+/** Counts one Forge LLM call, its tokens (0 when the response reported no usage) and its price in EUR. */
+export async function addLlmUsage(month, tokens, eur = 0) {
   const u = await getLlmUsage(month);
-  const next = { calls: u.calls + 1, tokens: u.tokens + (Number(tokens) > 0 ? Math.round(Number(tokens)) : 0), updatedAt: new Date().toISOString() };
+  const next = { calls: u.calls + 1, tokens: u.tokens + (Number(tokens) > 0 ? Math.round(Number(tokens)) : 0), eur: round6(u.eur + (Number(eur) > 0 ? Number(eur) : 0)), updatedAt: new Date().toISOString() };
   await kvs.set(usageKey(month), next);
   return { month, ...next };
 }

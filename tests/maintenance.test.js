@@ -111,7 +111,7 @@ test('APP_MAINTENANCE=on cannot be switched off or bypassed through anything a c
     const res = await app.handler[name]({ payload: { ...payloadFor(payload, planId), ...hostile }, context: { ...ctxFor(where), APP_MAINTENANCE: 'off', env: { APP_MAINTENANCE: 'off' } } });
     assert.equal(res.error, 'UNAVAILABLE', name);
   }
-  assert.deepEqual((await ok('availability', hostile)), { mode: 'on', statusUrl: 'https://superapps.statuspage.io' });
+  assert.deepEqual((await ok('availability', hostile)), { mode: 'on', statusUrl: 'https://superapps.statuspage.io', licensed: true });
   assert.equal(process.env.APP_MAINTENANCE, 'on');
   assert.equal(j.log.length, 0);
   assert.equal(kvsDump(), before);
@@ -121,7 +121,7 @@ test('APP_MAINTENANCE=on: the UI is told, Rovo answers with the status page and 
   const { j, planId } = await seeded();
   set('on');
   const before = kvsDump();
-  assert.deepEqual(await ok('availability', {}), { mode: 'on', statusUrl: 'https://superapps.statuspage.io' });
+  assert.deepEqual(await ok('availability', {}), { mode: 'on', statusUrl: 'https://superapps.statuspage.io', licensed: true });
   for (const [name, [payload]] of Object.entries(ROVO)) {
     const res = await app[name](payloadFor(payload, planId));
     assert.match(res.error, /temporarily unavailable.*superapps\.statuspage\.io/, name);
