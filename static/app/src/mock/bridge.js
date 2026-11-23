@@ -16,6 +16,7 @@
 
 import { makeProcurementBundle } from '../../../../tests/fixtures/procurement.js';
 import { parseAiBudget, siteBudget } from '../../../../src/lib/aiBudget.js';
+import { demoEn, incoming, outgoing } from './demoEn.js';
 
 const isSite = () => /^#admin/.test(window.location.hash);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -142,7 +143,13 @@ function aiGate(s, lang) {
   return null;
 }
 
+/** #demo=en: the same demo data in English (Marketplace screenshots, see demoEn.js). */
 export async function invoke(name, payload = {}) {
+  if (!demoEn()) return invokeRaw(name, payload);
+  return outgoing(await invokeRaw(name, incoming(payload)));
+}
+
+async function invokeRaw(name, payload = {}) {
   await wait(name === 'getProjectData' ? 500 : 120);
   const mode = maintenanceMode();
   const unlicensed = /license=inactive/.test(window.location.hash);
