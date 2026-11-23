@@ -448,27 +448,24 @@ export default function App() {
   const site = boot ? boot.mode === 'site' : String(ctx?.moduleKey || '').endsWith('workflow-analyzer-admin');
   const project = model?.project || boot?.project || ctx?.extension?.project || null;
   const tabGroups = [
+    // 1 understand · 2 check and change · 3 document (order set by the product owner, 2026-11-23)
     [
       ['overview', t('tab.overview'), 'layers'],
       ['diagram', t('tab.diagram'), 'diagram'],
       ['transitions', t('tab.transitions'), 'list', model?.stats.transitions],
-    ],
-    [
+      ['access', t('tab.access'), 'shieldCheck'],
+      ...(site ? [] : [['flow', t('tab.flow'), 'flow']]),
       ['impact', t('tab.impact'), 'link'],
-      ['health', t('tab.health'), 'pulse', model?.stats.findings.high, model?.stats.findings.high > 0],
+      // Without AI the tab keeps only its plain-language explanations, under a name that promises no AI
+      ['assistant', aiOn ? t('tab.assistant') : t('tab.explain'), aiOn ? 'message' : 'info'],
     ],
     [
+      ['health', t('tab.health'), 'pulse', model?.stats.findings.high, model?.stats.findings.high > 0],
+      ...(allWorkflows.length > 1 ? [['compare', t('tab.compare'), 'compare']] : []),
       site ? ['bulk', t('tab.bulk'), aiOn ? 'sparkle' : 'layers'] : ['autopilot', 'Autopilot', aiOn ? 'sparkle' : 'wand'],
       ...(site ? [] : [['changes', t('tab.changes'), 'history']]),
     ],
     [
-      ['access', t('tab.access'), 'shieldCheck'],
-      ...(site ? [] : [['flow', t('tab.flow'), 'flow']]),
-      ...(allWorkflows.length > 1 ? [['compare', t('tab.compare'), 'compare']] : []),
-    ],
-    [
-      // Without AI the tab keeps only its plain-language explanations, under a name that promises no AI
-      ['assistant', aiOn ? t('tab.assistant') : t('tab.explain'), aiOn ? 'message' : 'info'],
       ['export', t('tab.export'), 'download'],
       ['guide', t('tab.guide'), 'book'],
       ...(site && caps.jiraAdmin ? [['settings', t('tab.settings'), 'wrench']] : []),
