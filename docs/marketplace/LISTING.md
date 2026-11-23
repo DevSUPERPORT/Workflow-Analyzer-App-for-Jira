@@ -136,6 +136,7 @@ admin turns them on.
 4. Enter the pricing table; keep the 30-day trial.
 5. Enter documentation, EULA and privacy URLs (see ⟦CONFIRM⟧ above).
 6. Fill in the *Privacy & Security* tab from [DATA_SECURITY_PRIVACY.md](DATA_SECURITY_PRIVACY.md) (the user ticks the attestations).
-7. Security questionnaire: the app collects no credentials or API tokens (Q11: **No**).
+7. Security questionnaire: the app collects no credentials or API tokens (Q11: **No**). It stores account IDs only and uses the
+   Personal Data Reporting API (`src/lib/privacy.js`).
 8. **Stop before "Submit"** so SUPERPORT can review everything. The Publisher Agreement is ticked by SUPERPORT.
 9. After approval: install from the Marketplace on superportdev (trial) and repeat the smoke test.

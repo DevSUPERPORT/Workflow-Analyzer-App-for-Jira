@@ -1,7 +1,7 @@
 # Data Security & Privacy answers: Workflow Analyzer for Jira
 
 Answers for the Marketplace listing's *Privacy & Security* tab and the Atlassian security questionnaire, based on the code in this
-repository (paths given). Draft of 23 Nov 2026. **⟦OPEN⟧ marks a gap to close before submitting.**
+repository (paths given). Draft of 23 Nov 2026.
 
 ## Hosting and data flow
 
@@ -19,24 +19,25 @@ repository (paths given). Draft of 23 Nov 2026. **⟦OPEN⟧ marks a gap to clos
 
 | Data | Contents | Personal data? |
 |---|---|---|
-| Change plans and backups | Operations, workflow name, health before/after, workflow backup for rollback, who created/applied/rolled back (`src/lib/plans.js`) | Account ID and **display name** of the user |
-| Bulk plans | As above, for site-wide bulk changes (`src/lib/bulk.js`) | Account ID and display name |
-| Snapshots | Workflow configuration at a point in time, label, author name (`src/lib/store.js`, `src/shared/snapshot.js`) | Display name in the label/author |
-| Team notes | Text per transition, author (`src/lib/store.js` `setNote`) | Account ID and display name, free text |
+| Change plans and backups | Operations, workflow name, health before/after, workflow backup for rollback, who created/applied/rolled back (`src/lib/plans.js`) | Account ID |
+| Bulk plans | As above, for site-wide bulk changes (`src/lib/bulk.js`) | Account ID |
+| Snapshots | Workflow configuration at a point in time, label, who saved it (`src/lib/store.js`, `src/shared/snapshot.js`) | Account ID |
+| Team notes | Text per transition, author (`src/lib/store.js` `saveNote`) | Account ID; free text written by the team |
 | Preferences, last visit | Language and UI preferences, last-seen markers (`pref-{accountId}`, `seen-…`) | Account ID in the key |
-| AI switch | On/off, who changed it and when, last 50 changes (`ai-settings`) | Account ID and display name |
+| AI switch | On/off, who changed it and when, last 50 changes (`ai-settings`) | Account ID |
+| Monitoring, remediation tasks, resolution repair log | Project IDs, finding keys, issue keys changed, who did it | Account ID |
 | AI usage meter | Calls, tokens and EUR per month (`llm-usage:YYYY-MM`) | No |
-| Monitoring, remediation tasks, resolution repair log | Project IDs, finding keys, issue keys changed | No (issue keys only) |
 
-The app does **not** store issue content, comments, attachments or emails. Workflow configuration can contain user and group
-names referenced in rules.
+The app stores **account IDs only**, never display names, emails or other profile data: names are looked up from Jira when they
+are shown (`src/lib/names.js`). It does **not** store issue content, comments, attachments or emails. Workflow configuration
+copies (snapshots, rollback backups) can contain account IDs of users that Jira's workflow rules reference.
 
 ## Personal data handling
 
 | Question | Answer |
 |---|---|
-| Which personal data? | Atlassian account IDs and display names of users who create plans, notes or change the AI switch; names of users referenced in workflow rules (from Jira). |
-| Personal Data Reporting API | ⟦OPEN⟧ **Not implemented yet.** Atlassian expects apps that store personal data to report account IDs and erase data of closed accounts. To do before submitting: a weekly scheduled job that reports stored account IDs and, for closed accounts, replaces names with "Former user" and deletes their preferences; and stop storing display names (look them up when shown). |
+| Which personal data? | Atlassian account IDs of users who create plans, notes or snapshots, run repairs or change the AI switch. |
+| Personal Data Reporting API | **Implemented** (`src/lib/privacy.js`). A daily trigger (`personal-data-daily`, runs on every site, licensed or not) reports all stored account IDs to Atlassian at most once every 7 days. For accounts Atlassian reports as closed, the app deletes their preferences and visit markers and removes the account ID from every record (plans, notes, snapshots, logs); the content itself stays. Display names stored by versions before 23 Nov 2026 are removed once. Tested in `tests/privacy.test.js`. |
 | Can a customer delete data? | Plans, snapshots and notes can be deleted in the app; uninstalling deletes all data (see below). |
 | GDPR role | The customer is the controller; SUPERPORT doesn't receive the data. |
 

@@ -15,7 +15,7 @@ import { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { FakeJira } from '../fakejira/fake.js';
 
-export const state = { jira: null, kvs: new Map(), llm: [], kvsFail: null, invocationId: 'inv-0' };
+export const state = { jira: null, kvs: new Map(), llm: [], kvsFail: null, invocationId: 'inv-0', privacyReports: [], privacyClosed: new Set() };
 const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
 
 mock.module('@forge/api', {
@@ -26,6 +26,13 @@ mock.module('@forge/api', {
   namedExports: {
     // one Forge invocation per test step: set state.invocationId to start a new one
     getAppContext: () => ({ invocationId: state.invocationId }),
+    // Personal Data Reporting API: records each call; accounts in state.privacyClosed come back as closed
+    privacy: {
+      reportPersonalData: async (accounts) => {
+        state.privacyReports.push(accounts);
+        return accounts.filter((a) => state.privacyClosed.has(a.accountId)).map((a) => ({ accountId: a.accountId, status: 'closed' }));
+      },
+    },
     route: (strings, ...vals) => strings.reduce((acc, s, i) => acc + s + (i < vals.length ? (vals[i] instanceof URLSearchParams ? vals[i].toString() : encodeURIComponent(String(vals[i]))) : ''), ''),
   },
 });
@@ -35,7 +42,23 @@ mock.module('@forge/kvs', {
       get: async (k) => clone(state.kvs.get(k)),
       set: async (k, v) => { if (state.kvsFail?.test(k)) throw new Error(`KVS unavailable (${k})`); assert.ok(JSON.stringify(v).length < 240 * 1024, `KVS value for ${k} exceeds 240 KiB`); state.kvs.set(k, clone(v)); },
       delete: async (k) => { state.kvs.delete(k); },
+      // key prefix queries with cursor paging, as Forge KVS does (results sorted by key)
+      query: () => {
+        const q = { prefix: '', size: 100, from: 0 };
+        const b = {
+          where: (_p, cond) => { q.prefix = cond.prefix; return b; },
+          limit: (n) => { q.size = n; return b; },
+          cursor: (c) => { q.from = Number(c) || 0; return b; },
+          getMany: async () => {
+            const keys = [...state.kvs.keys()].filter((k) => k.startsWith(q.prefix)).sort();
+            const page = keys.slice(q.from, q.from + q.size);
+            return { results: page.map((key) => ({ key, value: clone(state.kvs.get(key)) })), nextCursor: q.from + q.size < keys.length ? String(q.from + q.size) : undefined };
+          },
+        };
+        return b;
+      },
     },
+    WhereConditions: { beginsWith: (prefix) => ({ prefix: String(prefix) }) },
   },
 });
 mock.module('@forge/llm', {

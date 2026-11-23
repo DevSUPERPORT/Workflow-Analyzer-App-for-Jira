@@ -32,6 +32,8 @@ import { makeSnapshot } from './shared/snapshot.js';
 import * as rovo from './rovo.js';
 import { maintenanceMode, requireAvailable, STATUS_PAGE_URL, UnavailableError } from './lib/maintenance.js';
 import { requireLicense, isLicenseInactive, LicenseError } from './lib/license.js';
+import { withNames } from './lib/names.js';
+import { reportPersonalData } from './lib/privacy.js';
 
 // ---------------------------------------------------------------- Rovo actions (kill switch first)
 
@@ -170,7 +172,10 @@ define('bootstrap', async (_p, context) => {
 // enabled is the site's own setting, kept while SUPERPORT has the AI stopped; limits come from AI_BUDGET
 async function aiSettingsView() {
   const [s, caps] = await Promise.all([store.getAiSettings(), aiCaps()]);
-  return { enabled: s.aiEnabled, stopped: caps.stop, updatedAt: s.updatedAt, updatedByName: s.updatedByName, usage: await aiUsage(undefined, caps) };
+  const view = { enabled: s.aiEnabled, stopped: caps.stop, updatedAt: s.updatedAt, updatedBy: s.updatedBy, usage: await aiUsage(undefined, caps) };
+  await withNames(view, [['updatedBy', 'updatedByName']]);
+  delete view.updatedBy;
+  return view;
 }
 
 define('getAiSettings', async () => {
@@ -198,9 +203,15 @@ define('getProjectData', async (_p, context) => {
   const bundle = await getProjectBundle(project.id);
   const ids = bundle.workflows.map((w) => String(w.id));
   await store.setProjectWorkflows(project.id, ids).catch(() => {});
-  const notes = await store.getNotes(ids);
+  const notes = await notesWithNames(await store.getNotes(ids));
   return { bundle, notes };
 });
+
+/** Notes carry the author's account ID; the name is looked up for display. */
+async function notesWithNames(notes) {
+  await withNames(Object.values(notes).flatMap((byTransition) => Object.values(byTransition || {})), [['by', 'byName']]);
+  return notes;
+}
 
 /**
  * Workflow IDs the caller may read/write notes for: all (site page, Jira admins) or only the workflows of the
@@ -221,29 +232,39 @@ define('saveNote', async ({ workflowId, transitionId, text }, context) => {
   if (!plain(workflowId) || !plain(transitionId) || !workflowId || !transitionId) throw new Error('workflowId and transitionId are required');
   const scope = await noteScope(context);
   if (scope && !scope.has(String(workflowId))) throw new ForbiddenError('FORBIDDEN_PROJECT');
-  return store.saveNote(String(workflowId), String(transitionId), text, await me());
+  const note = await store.saveNote(String(workflowId), String(transitionId), text, { accountId: context.accountId });
+  return note ? withNames(note, [['by', 'byName']]) : note;
 });
 
 define('getNotes', async ({ workflowIds }, context) => {
   const scope = await noteScope(context);
   const ids = (Array.isArray(workflowIds) ? workflowIds : []).map(String).filter(store.isSafeId).slice(0, 500);
-  return store.getNotes(scope ? ids.filter((id) => scope.has(id)) : ids);
+  return notesWithNames(await store.getNotes(scope ? ids.filter((id) => scope.has(id)) : ids));
 });
 
 // ---------------------------------------------------------------- snapshots (project page only)
 
 define('listSnapshots', async (_p, context) => {
   const project = await requireAccess(context);
-  return project ? store.listSnapshots(project.id) : [];
+  if (!project) return [];
+  return snapshotsWithNames(await store.listSnapshots(project.id));
 });
+
+/** `by` is a system label for automatic snapshots, else the name of `byId` (looked up). */
+async function snapshotsWithNames(list) {
+  const people = list.filter((s) => s.byId);
+  await withNames(people, [['byId', 'byName']]);
+  for (const s of people) { s.by = s.byName; delete s.byName; }
+  return list;
+}
 
 define('saveSnapshot', async ({ label }, context) => {
   const project = await requireAccess(context);
   if (!project) throw new ForbiddenError('FORBIDDEN_PROJECT');
   const model = normalize(await getProjectBundle(project.id));
-  const user = await me();
-  const snap = makeSnapshot(model, { label: String(label || '').slice(0, 120), by: user?.displayName || context.accountId });
-  return store.saveSnapshot(project.id, snap);
+  const snap = makeSnapshot(model, { label: String(label || '').slice(0, 120), by: null });
+  const entry = await store.saveSnapshot(project.id, snap, context.accountId || null);
+  return (await snapshotsWithNames([entry]))[0];
 });
 
 define('getSnapshot', async ({ id }, context) => {
@@ -306,14 +327,13 @@ define('createRemediation', async ({ items, issueTypeId, projectKey }, context) 
   if (!project) throw new ForbiddenError('FORBIDDEN_PROJECT');
   const target = String(projectKey || project.key).toUpperCase();
   const existing = await store.getRemediation(project.id);
-  const user = await me();
   const created = [];
   const skipped = [];
   for (const it of (Array.isArray(items) ? items : []).slice(0, 25)) {
     if (!it?.fingerprint || !it?.summary) continue;
     if (existing[it.fingerprint]) { skipped.push({ fingerprint: it.fingerprint, key: existing[it.fingerprint].key }); continue; }
     const key = await createIssue({ projectKey: target, issueTypeId, summary: String(it.summary).slice(0, 250), description: it.description, labels: ['workflow-health', 'superport-wfa'] });
-    created.push({ fingerprint: it.fingerprint, key, by: user?.displayName });
+    created.push({ fingerprint: it.fingerprint, key, byId: context.accountId || null });
   }
   if (created.length) await store.addRemediation(project.id, created);
   return { created, skipped };
@@ -329,8 +349,7 @@ define('getMonitoring', async (_p, context) => {
 define('setMonitoring', async ({ enabled }, context) => {
   const project = await requireAccess(context);
   if (!project) throw new ForbiddenError('FORBIDDEN_PROJECT');
-  const user = await me();
-  await store.setMonitoring(project, !!enabled, user?.displayName);
+  await store.setMonitoring(project, !!enabled, context.accountId || null);
   const state = enabled ? await monitorProject(project) : await store.getMonitorState(project.id);
   return { enabled: !!enabled, state };
 });
@@ -387,8 +406,9 @@ define('autofixPlan', async ({ workflowId, lang, fingerprints }, context) => {
 
 define('replanPlan', async ({ id, lang }, context) => plans.replanPlan({ project: await projectOnly(context), planId: String(id), user: await me(), lang: normalizeLang(lang) }));
 
-define('listPlans', async (_p, context) => plans.listPlans((await projectOnly(context)).id));
-define('getPlan', async ({ id }, context) => plans.getPlan((await projectOnly(context)).id, String(id)));
+const AUTHOR = [['createdBy', 'createdByName']];
+define('listPlans', async (_p, context) => withNames(await plans.listPlans((await projectOnly(context)).id), AUTHOR));
+define('getPlan', async ({ id }, context) => withNames(await plans.getPlan((await projectOnly(context)).id, String(id)), AUTHOR));
 define('applyPlan', async ({ id, confirmShared }, context) => plans.applyPlan({ project: await projectOnly(context), planId: String(id), confirmShared: !!confirmShared, user: await me() }));
 define('rollbackPlan', async ({ id, confirmOverwrite }, context) => plans.rollbackPlan({ project: await projectOnly(context), planId: String(id), confirmOverwrite: confirmOverwrite === true, user: await me() }));
 define('discardPlan', async ({ id }, context) => plans.discardPlan({ project: await projectOnly(context), planId: String(id) }));
@@ -397,11 +417,11 @@ define('discardPlan', async ({ id }, context) => plans.discardPlan({ project: aw
 
 define('siteBulkList', async (_p, context) => {
   await requireSiteAccess(context);
-  return bulk.listBulks();
+  return withNames(await bulk.listBulks(), AUTHOR);
 });
 define('siteBulkGet', async ({ id }, context) => {
   await requireSiteAccess(context);
-  return bulk.getBulk(String(id));
+  return withNames(await bulk.getBulk(String(id)), AUTHOR);
 });
 define('siteBulkCreate', async ({ workflowIds, ops, instructions, autofix, lang }, context) => {
   await requireSiteAccess(context);
@@ -456,14 +476,15 @@ define('resolutionRepair', async ({ items, runId, kind, undoOf, ...payload }, co
   const clearsSome = Array.isArray(items) && items.some((i) => i && (i.to == null || i.to === ''));
   const clearing = clearsSome && scope !== 'site' ? clearingSelfTransitions(normalize(await getProjectBundle(projectId))) : null;
   const out = await issues.repairResolutions({ projectKey: scope === 'site' ? null : projectKey, items, admin, clearing });
-  const user = await me();
-  const run = await issues.recordRun(scope, { runId, kind, undoOf, by: user?.displayName, results: out.results }).catch(() => null);
+  const run = await issues.recordRun(scope, { runId, kind, undoOf, byId: context.accountId || null, results: out.results }).catch(() => null);
   return { ...out, run: run ? { id: run.id, items: run.items.length } : null };
 });
 
 define('resolutionRuns', async (payload, context) => {
   const { scope } = await resolutionScope(context, payload);
-  return issues.listRuns(scope);
+  const runs = await issues.listRuns(scope);
+  await withNames(runs, [['byId', 'by']]);
+  return runs;
 });
 
 // Scheduled trigger. The daily monitor only exists to store snapshots, so it does nothing unless the app is fully
@@ -471,6 +492,14 @@ define('resolutionRuns', async (payload, context) => {
 export const monitor = async () => {
   if (maintenanceMode() !== 'off') return;
   await monitorRun();
+};
+
+// Daily trigger for Atlassian's personal data reporting (lib/privacy.js; reports at most once a week). Not limited to
+// licensed sites: stored account IDs must be reported either way. Skipped while the kill switch is on or read-only
+// (it can write); the next day catches up.
+export const privacy = async () => {
+  if (maintenanceMode() !== 'off') return;
+  await reportPersonalData().catch((e) => console.error('[privacy] personal data report failed:', e?.message || e));
 };
 
 export const handler = resolver.getDefinitions();

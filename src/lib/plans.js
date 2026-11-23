@@ -62,7 +62,7 @@ async function deletePlanData(id) {
 async function savePlan(plan) {
   await kvs.set(planKey(plan.id), plan);
   const idx = (await kvs.get(idxKey(plan.projectId))) || [];
-  const entry = { id: plan.id, status: plan.status, createdAt: plan.createdAt, createdByName: plan.createdByName, workflowName: plan.workflowName, source: plan.source, title: plan.title, opCount: plan.ops.length, healthBefore: plan.healthBefore, healthAfter: plan.healthAfter };
+  const entry = { id: plan.id, status: plan.status, createdAt: plan.createdAt, createdBy: plan.createdBy || null, workflowName: plan.workflowName, source: plan.source, title: plan.title, opCount: plan.ops.length, healthBefore: plan.healthBefore, healthAfter: plan.healthAfter };
   const next = [entry, ...idx.filter((e) => e.id !== plan.id)];
   const removed = [];
   const max = plan.projectId === SITE.id ? MAX_SITE_PLANS : MAX_PLANS;
@@ -195,7 +195,6 @@ export async function createPlan({ project, workflowId, workflowName, ops, instr
     status: !dr.results.some((r) => r.ok) || validation?.ok === false ? 'invalid' : dr.results.every((r) => !r.ok || r.noop) ? 'nochange' : 'planned',
     createdAt: new Date().toISOString(),
     createdBy: user?.accountId || null,
-    createdByName: user?.displayName || null,
   };
   return savePlan(plan);
 }
@@ -339,7 +338,7 @@ async function applyClaimed({ project, plan, user }) {
 
   // Safety net: snapshot + raw backup for rollback
   const model = normalize(ctxBundle);
-  await store.saveSnapshot(project.id, makeSnapshot(model, { label: `Autopilot: before "${plan.title.slice(0, 60)}"`, by: user?.displayName || 'Autopilot' }));
+  await store.saveSnapshot(project.id, makeSnapshot(model, { label: `Autopilot: before "${plan.title.slice(0, 60)}"`, by: user?.accountId ? null : 'Autopilot' }), user?.accountId || null);
   const backupChunks = await saveBackup(plan.id, { wf: fresh, statuses });
 
   const migrations = re.statusMappings.length ? re.statusMappings : removedStatusMigrations(fresh, re.workflow);
@@ -360,7 +359,7 @@ async function applyClaimed({ project, plan, user }) {
     // What the workflow looks like right after our change – a later rollback compares against it
     plan.appliedSignature = await getRawWorkflow(plan.workflowId).then(({ wf }) => workflowSignature(wf)).catch(() => null);
     plan.appliedAt = new Date().toISOString();
-    plan.appliedBy = user?.displayName || null;
+    plan.appliedById = user?.accountId || null;
     plan.taskId = out.taskId;
     plan.warnings = out.warnings;
   }
@@ -394,7 +393,7 @@ export async function rollbackPlan({ project, planId, user, confirmOverwrite }) 
   plan.status = 'rolledback';
   plan.rollbackErrors = undefined; // errors of earlier failed attempts are no longer relevant
   plan.rolledBackAt = new Date().toISOString();
-  plan.rolledBackBy = user?.displayName || null;
+  plan.rolledBackById = user?.accountId || null;
   await savePlan(plan);
   return plan;
 }

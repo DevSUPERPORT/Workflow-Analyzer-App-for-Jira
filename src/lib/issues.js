@@ -196,7 +196,7 @@ export async function listRuns(scope) {
 }
 
 /** Append the repaired items of one batch to a run (created on first use). */
-export async function recordRun(scope, { runId, kind, by, undoOf, results }) {
+export async function recordRun(scope, { runId, kind, byId, undoOf, results }) {
   if (!RUN_RE.test(String(runId || ''))) throw new Error('Invalid run id');
   const done = results.filter((r) => r.status === 'repaired').map((r) => ({ key: r.key, from: r.from, to: r.to }));
   const runs = await listRuns(scope);
@@ -204,7 +204,7 @@ export async function recordRun(scope, { runId, kind, by, undoOf, results }) {
   // A run that changed nothing and failed nothing (e.g. everything was already repaired) is not history
   if (!run && !done.length && !results.some((r) => r.status === 'failed')) return null;
   if (!run) {
-    run = { id: runId, kind: KINDS[kind] ? kind : null, at: new Date().toISOString(), by: by || null, undoOf: RUN_RE.test(String(undoOf || '')) ? undoOf : null, items: [], failed: 0, skipped: 0 };
+    run = { id: runId, kind: KINDS[kind] ? kind : null, at: new Date().toISOString(), byId: byId || null, undoOf: RUN_RE.test(String(undoOf || '')) ? undoOf : null, items: [], failed: 0, skipped: 0 };
     runs.unshift(run);
   }
   run.items = [...run.items, ...done].slice(0, MAX_RUN_ITEMS);

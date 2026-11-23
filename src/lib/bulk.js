@@ -25,7 +25,7 @@ const IDX = 'bulkidx';
 async function save(bulk) {
   await kvs.set(bulkKey(bulk.id), bulk);
   const idx = (await kvs.get(IDX)) || [];
-  const entry = { id: bulk.id, title: bulk.title, createdAt: bulk.createdAt, createdByName: bulk.createdByName, targets: bulk.children.length, status: bulk.status, counts: counts(bulk) };
+  const entry = { id: bulk.id, title: bulk.title, createdAt: bulk.createdAt, createdBy: bulk.createdBy || null, targets: bulk.children.length, status: bulk.status, counts: counts(bulk) };
   await kvs.set(IDX, [entry, ...idx.filter((e) => e.id !== bulk.id)].slice(0, 30));
   return bulk;
 }
@@ -66,7 +66,6 @@ export async function createBulk({ workflowIds, ops, instructions, user, autofix
     lang: lang === 'de' ? 'de' : 'en',
     createdAt: new Date().toISOString(),
     createdBy: user?.accountId || null,
-    createdByName: user?.displayName || null,
     status: 'planning',
     children: ids.map((workflowId) => ({ workflowId, workflowName: null, planId: null, status: 'pending' })),
   };

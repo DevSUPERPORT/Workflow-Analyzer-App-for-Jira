@@ -483,6 +483,10 @@ modules:
       interval: day
       filter:
         appIsLicensed: true
+    # Atlassian's personal data reporting (src/lib/privacy.js): daily check, report at most weekly; on every site
+    - key: personal-data-daily
+      function: privacy
+      interval: day
 
   function:
     - key: resolver
@@ -515,6 +519,9 @@ modules:
       handler: index.actListPlans
     - key: actResolutions
       handler: index.actResolutions
+    - key: privacy
+      handler: index.privacy
+      timeoutSeconds: 900
     - key: monitor
       handler: index.monitor
       timeoutSeconds: 900

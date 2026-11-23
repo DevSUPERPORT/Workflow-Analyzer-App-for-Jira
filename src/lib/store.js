@@ -1,14 +1,15 @@
 /**
  * Forge KVS persistence: user preferences, team notes per transition, workflow snapshots (chunked), remediation
  * tasks, monitoring state and per-user visit tracking. All keys are sanitised so hostile IDs cannot reach other
- * storage entries.
+ * storage entries. Who did something is stored as the account ID only; names are looked up when shown
+ * (lib/names.js), and lib/privacy.js reports and erases account IDs.
  *
  * @file        src/lib/store.js
  * @app         Workflow Analyzer for Jira
  * @author      George Papasotiriou
  * @company     SUPERPORT
  * @created     2026-10-24
- * @updated     2026-11-05
+ * @updated     2026-11-23
  */
 
 import { kvs } from '@forge/kvs';
@@ -65,7 +66,7 @@ export async function saveNote(workflowId, transitionId, text, author) {
   const notes = (await kvs.get(key)) || {};
   const clean = String(text || '').slice(0, 4000);
   if (!clean.trim()) delete notes[transitionId];
-  else notes[transitionId] = { text: clean, by: author?.accountId || null, byName: author?.displayName || null, at: new Date().toISOString() };
+  else notes[transitionId] = { text: clean, by: author?.accountId || null, at: new Date().toISOString() };
   await kvs.set(key, notes);
   return notes[transitionId] || null;
 }
@@ -79,12 +80,13 @@ export async function listSnapshots(projectId) {
   return (await kvs.get(idxKey(projectId))) || [];
 }
 
-export async function saveSnapshot(projectId, snapshot) {
+/** `byId`: account ID of the user who saved it (null for automatic snapshots, whose `by` is a system label). */
+export async function saveSnapshot(projectId, snapshot, byId = null) {
   const id = Date.now().toString(36);
   const chunks = chunkString(JSON.stringify(snapshot));
   for (let i = 0; i < chunks.length; i++) await kvs.set(chunkKey(projectId, id, i), chunks[i]);
   const index = await listSnapshots(projectId);
-  const entry = { id, takenAt: snapshot.takenAt, by: snapshot.by, label: snapshot.label, stats: snapshot.stats, chunks: chunks.length };
+  const entry = { id, takenAt: snapshot.takenAt, by: snapshot.by || null, byId: byId || null, label: snapshot.label, stats: snapshot.stats, chunks: chunks.length };
   index.unshift(entry);
   const removed = index.splice(MAX_SNAPSHOTS);
   await kvs.set(idxKey(projectId), index);
@@ -121,7 +123,7 @@ export async function getRemediation(projectId) {
 
 export async function addRemediation(projectId, entries) {
   const map = await getRemediation(projectId);
-  for (const e of entries) map[e.fingerprint] = { key: e.key, at: new Date().toISOString(), by: e.by || null };
+  for (const e of entries) map[e.fingerprint] = { key: e.key, at: new Date().toISOString(), byId: e.byId || null };
   await kvs.set(safeKey(`rem-${projectId}`), map);
   return map;
 }
@@ -134,9 +136,9 @@ export async function getMonitoredProjects() {
   return (await kvs.get(MON_LIST)) || [];
 }
 
-export async function setMonitoring(project, enabled, by) {
+export async function setMonitoring(project, enabled, byId) {
   const list = (await getMonitoredProjects()).filter((p) => p.id !== project.id);
-  if (enabled) list.push({ id: project.id, key: project.key, since: new Date().toISOString(), by: by || null });
+  if (enabled) list.push({ id: project.id, key: project.key, since: new Date().toISOString(), byId: byId || null });
   await kvs.set(MON_LIST, list.slice(0, 200));
   return enabled;
 }
@@ -172,14 +174,14 @@ const AI_SETTINGS = 'ai-settings';
 
 export async function getAiSettings() {
   const s = (await kvs.get(AI_SETTINGS)) || {};
-  return { aiEnabled: s.aiEnabled === true, updatedAt: s.updatedAt || null, updatedBy: s.updatedBy || null, updatedByName: s.updatedByName || null, history: Array.isArray(s.history) ? s.history : [] };
+  return { aiEnabled: s.aiEnabled === true, updatedAt: s.updatedAt || null, updatedBy: s.updatedBy || null, history: Array.isArray(s.history) ? s.history : [] };
 }
 
 /** Saves the switch with who changed it and when; the last 50 changes are kept as a change log. */
 export async function setAiEnabled(enabled, user) {
   const prev = await getAiSettings();
-  const entry = { aiEnabled: enabled === true, at: new Date().toISOString(), by: user?.accountId || null, byName: user?.displayName || null };
-  const next = { aiEnabled: entry.aiEnabled, updatedAt: entry.at, updatedBy: entry.by, updatedByName: entry.byName, history: [entry, ...prev.history].slice(0, 50) };
+  const entry = { aiEnabled: enabled === true, at: new Date().toISOString(), by: user?.accountId || null };
+  const next = { aiEnabled: entry.aiEnabled, updatedAt: entry.at, updatedBy: entry.by, history: [entry, ...prev.history].slice(0, 50) };
   await kvs.set(AI_SETTINGS, next);
   return next;
 }
