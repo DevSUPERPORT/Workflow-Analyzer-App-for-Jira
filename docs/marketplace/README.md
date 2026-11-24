@@ -1,4 +1,4 @@
-# Marketplace package: Workflow Analyzer & Autopilot for Jira
+# Marketplace package: Workflow Analyzer & Optimizer for Jira
 
 Everything needed to list the app. Start with [LISTING.md](LISTING.md).
 

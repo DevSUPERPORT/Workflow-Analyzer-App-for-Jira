@@ -95,6 +95,12 @@ async function open(send, { hash = '', tab = 'overview', wf = 'all', width = 184
   await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
   await send('Page.navigate', { url: BASE });
   await sleep(800);
+  // The first Vite load can take longer than that: wait until the page is on the click-dummy's origin.
+  for (let i = 0; i < 60; i++) {
+    const ready = await evaluate(send, `location.href.startsWith(${JSON.stringify(BASE)}) && document.readyState !== 'loading'`).catch(() => false);
+    if (ready) break;
+    await sleep(250);
+  }
   const place = hash.startsWith('admin') ? 'wfa.place.site' : `wfa.place.${PROJECT_ID}`;
   await evaluate(send, `localStorage.clear();
     localStorage.setItem('superport.wfa.lang', 'en');
@@ -155,7 +161,7 @@ const ART = {
       .frame { left: 90px; top: 178px; width: 780px; height: 380px; }
       .frame { background: #fff url('${SHOT('autofix')}') no-repeat -141px 0 / 1067px auto; }
     </style></head><body><div class="dots"></div>
-      <div class="brand"><img src="${LOGO}"><span>WORKFLOW ANALYZER &amp; AUTOPILOT FOR JIRA</span></div>
+      <div class="brand"><img src="${LOGO}"><span>WORKFLOW ANALYZER &amp; OPTIMIZER FOR JIRA</span></div>
       <h1>See every workflow. Change it safely.</h1>
       <div class="frame"></div>
     </body></html>`,
@@ -170,7 +176,7 @@ const ART = {
       .frame { background: #fff url('${SHOT('overview')}') no-repeat -146px 0 / 1104px auto; }
     </style></head><body><div class="dots"></div>
       <img class="logo" src="${LOGO}">
-      <h1>Workflow Analyzer & Autopilot for Jira</h1>
+      <h1>Workflow Analyzer & Optimizer for Jira</h1>
       <p>Understand, check and safely change your Jira workflows, with a health check, impact analysis and one-click rollback.</p>
       <div class="frame"></div>
     </body></html>`,

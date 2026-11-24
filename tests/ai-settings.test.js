@@ -18,11 +18,11 @@ import { MONTHLY_LLM_CALLS, MONTHLY_LLM_TOKENS } from '../src/lib/aiLimits.js';
 // after the harness: lib/ai.js loads @forge/llm, which the harness mocks
 const { usageTokens } = await import('../src/lib/ai.js');
 
-const OFF_EN = 'AI features are turned off. A Jira administrator can turn them on under Jira settings › Apps › Workflow Analyzer & Autopilot for Jira (site-wide) › AI features.';
-const OFF_DE = 'Die KI-Funktionen sind deaktiviert. Ein Jira-Administrator kann sie unter Jira-Einstellungen › Apps › Workflow Analyzer & Autopilot for Jira (instanzweit) › KI-Funktionen aktivieren.';
+const OFF_EN = 'AI features are turned off. A Jira administrator can turn them on under Jira settings › Apps › Workflow Analyzer & Optimizer for Jira (site-wide) › AI features.';
+const OFF_DE = 'Die KI-Funktionen sind deaktiviert. Ein Jira-Administrator kann sie unter Jira-Einstellungen › Apps › Workflow Analyzer & Optimizer for Jira (instanzweit) › KI-Funktionen aktivieren.';
 // Rovo also hears that every action is paused, so the agent doesn't offer work it can't do
-const ROVO_EN = `${OFF_EN} Until then, every Workflow Analyst action is paused, including explanations and access checks. The Workflow Analyzer app itself (Project settings › Apps › Workflow Analyzer & Autopilot for Jira) works without AI.`;
-const ROVO_DE = `${OFF_DE} Bis dahin sind alle Aktionen des Workflow Analyst pausiert, auch Erklärungen und Zugriffsprüfungen. Die App Workflow Analyzer selbst (Projekteinstellungen › Apps › Workflow Analyzer & Autopilot for Jira) funktioniert ohne KI.`;
+const ROVO_EN = `${OFF_EN} Until then, every Workflow Analyst action is paused, including explanations and access checks. The Workflow Analyzer app itself (Project settings › Apps › Workflow Analyzer & Optimizer for Jira) works without AI.`;
+const ROVO_DE = `${OFF_DE} Bis dahin sind alle Aktionen des Workflow Analyst pausiert, auch Erklärungen und Zugriffsprüfungen. Die App Workflow Analyzer selbst (Projekteinstellungen › Apps › Workflow Analyzer & Optimizer for Jira) funktioniert ohne KI.`;
 const LIMIT_EN = 'The monthly AI quota is used up. It is available again from the 1st of next month.';
 const LIMIT_DE = 'Das monatliche KI-Kontingent ist aufgebraucht. Es steht ab dem 1. des nächsten Monats wieder zur Verfügung.';
 

@@ -1,4 +1,4 @@
-# Marketplace listing: Workflow Analyzer & Autopilot for Jira
+# Marketplace listing: Workflow Analyzer & Optimizer for Jira
 
 Everything to paste into the Atlassian partner portal. Images are in this folder (see [README](README.md)).
 All decisions are made; the listing is created only when SUPERPORT says so.
@@ -7,7 +7,7 @@ All decisions are made; the listing is created only when SUPERPORT says so.
 
 | Field | Value |
 |---|---|
-| App name | Workflow Analyzer & Autopilot for Jira |
+| App name | Workflow Analyzer & Optimizer for Jira |
 | App ID | `ari:cloud:ecosystem::app/66b30dff-8536-4de6-8630-65f355b28bcc` |
 | Hosting | Cloud, Forge, **Runs on Atlassian** (no egress; data in Atlassian's Forge storage; AI through Forge LLMs and Rovo, both run by Atlassian) |
 | Version to list | Production **4.0.0** (tag `workflow-analyzer-20261124-101629`) |
@@ -67,7 +67,7 @@ customer or test-site data appears in them.
 ## Description (long)
 
 **Jira workflows grow until nobody knows what they do.** Conditions that reference deleted groups, users who left, Done transitions
-that never set a resolution, rules of apps you no longer pay for. Workflow Analyzer & Autopilot for Jira reads your workflows live from Jira,
+that never set a resolution, rules of apps you no longer pay for. Workflow Analyzer & Optimizer for Jira reads your workflows live from Jira,
 explains them in plain language, finds what is broken and helps you fix it safely.
 
 **Understand** (Project settings → Apps → Workflow Analyzer; Jira admins also get a site-wide page)

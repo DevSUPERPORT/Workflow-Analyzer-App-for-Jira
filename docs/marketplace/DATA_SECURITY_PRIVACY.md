@@ -1,4 +1,4 @@
-# Data Security & Privacy answers: Workflow Analyzer & Autopilot for Jira
+# Data Security & Privacy answers: Workflow Analyzer & Optimizer for Jira
 
 Answers for the Marketplace listing's *Privacy & Security* tab and the Atlassian security questionnaire, based on the code in this
 repository (paths given). Draft of 23 Nov 2026.
