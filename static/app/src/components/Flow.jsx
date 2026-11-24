@@ -71,19 +71,25 @@ export default function Flow({ model, workflows, load, loadState, fetchLoad }) {
           )}
 
           {workflows.map((wf) => {
-            const max = Math.max(1, ...wf.statuses.map((s) => load.byStatus[s.id]?.count || 0));
+            // This workflow's own issue types when the project uses several workflows
+            const own = load.byWorkflow?.[wf.id];
+            const byStatus = own?.byStatus || load.byStatus;
+            // No issue of this workflow's issue types at all: nothing is "never used", there is simply no data yet
+            const empty = own ? own.all === 0 : load.all === 0;
+            const max = Math.max(1, ...wf.statuses.map((s) => byStatus[s.id]?.count || 0));
             return (
               <div key={wf.id} className="card">
                 <h3>{wf.name}</h3>
+                {empty && <p className="muted small">{t('fl.noIssues')}</p>}
                 <table className="data">
                   <thead><tr><th>{t('ref.status')}</th><th style={{ width: '45%' }}>{t('fl.issues')}</th><th className="nowrap">{t('fl.count')}</th><th className="nowrap">{t('fl.stale')}</th></tr></thead>
                   <tbody>
                     {wf.statuses.map((s) => {
-                      const l = load.byStatus[s.id] || { count: 0, stale: 0 };
+                      const l = byStatus[s.id] || { count: 0, stale: 0 };
                       const col = s.category === 'DONE' ? 'var(--ok)' : s.category === 'IN_PROGRESS' ? '#2f6fde' : '#8590a2';
                       return (
                         <tr key={s.ref}>
-                          <td><StatusPill status={s} />{l.ever === 0 && <span className="chip warn" style={{ marginLeft: 6 }}>{t('fl.neverUsed')}</span>}</td>
+                          <td><StatusPill status={s} />{!empty && l.ever === 0 && <span className="chip warn" style={{ marginLeft: 6 }}>{t('fl.neverUsed')}</span>}</td>
                           <td>
                             <div className="bar" style={{ height: 12 }}>
                               <span style={{ width: `${(100 * l.count) / max}%`, background: col }} />

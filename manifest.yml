@@ -1,6 +1,6 @@
 # Forge manifest of the Workflow Analyzer: the project settings page and the site-wide admin page (Custom UI),
 # the "Workflow Analyst" Rovo agent with its actions, the Forge LLM module, the daily monitoring trigger,
-# translations, the five minimal scopes and Marketplace licensing (paid via Atlassian). Every function key here maps
+# translations, the six minimal scopes and Marketplace licensing (paid via Atlassian). Every function key here maps
 # to a handler exported from src/index.js.
 #
 # @file        manifest.yml
@@ -8,7 +8,7 @@
 # @author      George Papasotiriou
 # @company     SUPERPORT
 # @created     2026-10-24
-# @updated     2026-11-23
+# @updated     2026-11-24
 
 app:
   id: ari:cloud:ecosystem::app/66b30dff-8536-4de6-8630-65f355b28bcc
@@ -546,6 +546,8 @@ permissions:
     - read:jira-user
     - manage:jira-configuration
     - storage:app
+    # Personal Data Reporting API (privacy.reportPersonalData): report stored account IDs, erase closed accounts
+    - report:personal-data
   content:
     styles:
       - unsafe-inline

@@ -117,3 +117,16 @@ test('finding fingerprints survive Jira regenerating rule IDs (live finding)', a
   assert.equal(findingFingerprint(f), findingFingerprint({ ...f, ruleId: 'bbb' }));
   assert.notEqual(findingFingerprint(f), findingFingerprint({ ...f, ruleKind: 'validator' }));
 });
+
+test('load insights use each workflow’s own counts when the project has several workflows', () => {
+  const backlog = wf.statuses[0];
+  const load = { byStatus: { [backlog.id]: { count: 24, stale: 0, ever: 24 } }, total: 30, all: 31, staleDays: 30,
+    byWorkflow: { [wf.id]: { byStatus: { [backlog.id]: { count: 2, stale: 0, ever: 2 } }, total: 20 }, [bug.id]: { byStatus: {}, total: 10 } } };
+  const out = loadInsights({ workflows: [wf, bug] }, load);
+  assert.ok(!out.some((i) => i.code === 'BOTTLENECK' && i.wfId === wf.id), 'project-wide count must not be used for this workflow');
+  assert.ok(!out.some((i) => i.code === 'NEVER_USED' && i.wfId === bug.id) || load.byWorkflow[bug.id].all !== 0);
+  const empty = loadInsights({ workflows: [wf, bug] }, { ...load, byWorkflow: { ...load.byWorkflow, [bug.id]: { byStatus: Object.fromEntries(bug.statuses.map((s) => [s.id, { count: 0, stale: 0, ever: 0 }])), total: 0, all: 0 } } });
+  assert.ok(!empty.some((i) => i.code === 'NEVER_USED' && i.wfId === bug.id), 'a workflow without issues gets no never-used hints');
+  const flat = loadInsights({ workflows: [wf] }, { ...load, byWorkflow: undefined });
+  assert.ok(flat.some((i) => i.code === 'BOTTLENECK' && i.status === backlog.name));
+});

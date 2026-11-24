@@ -7,7 +7,7 @@
  * @author      George Papasotiriou
  * @company     SUPERPORT
  * @created     2026-10-24
- * @updated     2026-11-05
+ * @updated     2026-11-24
  */
 
 import { allRules } from './engine.js';
@@ -118,7 +118,22 @@ export function chunkString(str, size = 180000) {
   return out.length ? out : [''];
 }
 
-/** Content hash of a snapshot (ignores timestamps/labels) – used by monitoring to detect changes. */
+/**
+ * Content hash of a snapshot (ignores timestamps/labels) – used by monitoring to detect changes. Canonical like
+ * diffSnapshots: Jira returns workflows, issue types, source statuses and rules in no stable order, so they are
+ * sorted first; otherwise a mere reordering counted as a change with 0 differences.
+ */
 export function snapshotHash(snap) {
-  return hash(JSON.stringify(snap.workflows));
+  const sort = (arr) => [...(arr || [])].map(String).sort();
+  const canon = [...snap.workflows]
+    .map((w) => ({
+      ...w,
+      it: sort(w.it),
+      s: [...w.s].sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+      t: [...w.t]
+        .map((t) => ({ ...t, f: sort(t.f), r: [...t.r].map((r) => r[0]).sort() }))
+        .sort((a, b) => String(a.i).localeCompare(String(b.i))),
+    }))
+    .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+  return hash(JSON.stringify(canon));
 }

@@ -470,27 +470,54 @@ export async function approximateCount(jql) {
   return Number(res?.count ?? 0);
 }
 
-/**
- * Issue load per status for a project (counts respect the user's browse permissions).
- * statusIds: numeric status IDs of the project's workflows.
- */
-export async function getStatusLoad(projectKey, statusIds, staleDays = 30) {
-  const key = String(projectKey).replace(/[^A-Za-z0-9_]/g, '');
-  const ids = [...new Set(statusIds.map(String).filter((s) => /^\d+$/.test(s)))].slice(0, 80);
-  const days = Math.min(365, Math.max(1, Number(staleDays) || 30));
+const numericIds = (arr, max) => [...new Set((Array.isArray(arr) ? arr : []).map(String).filter((s) => /^\d+$/.test(s)))].slice(0, max);
+
+async function countByStatus(scope, ids, days) {
   const byStatus = {};
   await pool(ids, 4, async (id) => {
     const [count, stale] = await Promise.all([
-      approximateCount(`project = "${key}" AND status = ${id}`),
-      approximateCount(`project = "${key}" AND status = ${id} AND updated <= -${days}d`),
+      approximateCount(`${scope} AND status = ${id}`),
+      approximateCount(`${scope} AND status = ${id} AND updated <= -${days}d`),
     ]);
     let ever = count;
-    if (count === 0) ever = await approximateCount(`project = "${key}" AND status WAS ${id}`).catch(() => null);
+    if (count === 0) ever = await approximateCount(`${scope} AND status WAS ${id}`).catch(() => null);
     byStatus[id] = { count, stale, ever };
   });
-  const total = await approximateCount(`project = "${key}" AND statusCategory != Done`);
-  const all = await approximateCount(`project = "${key}"`);
-  return { byStatus, total, all, staleDays: days, at: new Date().toISOString() };
+  return byStatus;
+}
+
+/**
+ * Issue load per status for a project (counts respect the user's browse permissions).
+ * statusIds: numeric status IDs of the project's workflows.
+ * workflows: [{ id, issueTypeIds, statusIds }] – when a project uses several workflows, each one is also counted
+ * for its own issue types only (byWorkflow); otherwise two workflows sharing a status ("Backlog") both showed all
+ * of the project's issues in it. All IDs are filtered to digits before they reach JQL.
+ */
+export async function getStatusLoad(projectKey, statusIds, staleDays = 30, workflows = []) {
+  const key = String(projectKey).replace(/[^A-Za-z0-9_]/g, '');
+  const ids = numericIds(statusIds, 80);
+  const days = Math.min(365, Math.max(1, Number(staleDays) || 30));
+  const project = `project = "${key}"`;
+  const byStatus = await countByStatus(project, ids, days);
+  const byWorkflow = {};
+  const wfs = (Array.isArray(workflows) ? workflows : [])
+    .map((w) => ({ id: String(w?.id || '').slice(0, 80), types: numericIds(w?.issueTypeIds, 50), statuses: numericIds(w?.statusIds, 40).filter((s) => ids.includes(s)) }))
+    .filter((w) => w.id && w.types.length && w.statuses.length)
+    .slice(0, 10);
+  if (wfs.length > 1) {
+    for (const w of wfs) {
+      const scope = `${project} AND issuetype in (${w.types.join(', ')})`;
+      byWorkflow[w.id] = { byStatus: await countByStatus(scope, w.statuses, days), total: await approximateCount(`${scope} AND statusCategory != Done`), all: await approximateCount(scope) };
+    }
+  }
+  const total = await approximateCount(`${project} AND statusCategory != Done`);
+  const all = await approximateCount(project);
+  return { byStatus, byWorkflow, total, all, staleDays: days, at: new Date().toISOString() };
+}
+
+/** What getStatusLoad needs to count per workflow: its issue types and statuses. */
+export function loadScopes(model) {
+  return model.workflows.map((w) => ({ id: w.id, issueTypeIds: w.issueTypes.map((i) => String(i.id)), statusIds: w.statuses.map((s) => s.id).filter(Boolean) }));
 }
 
 export async function getCreatableIssueTypes(projectKey) {

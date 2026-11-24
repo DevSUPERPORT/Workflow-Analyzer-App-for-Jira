@@ -279,16 +279,20 @@ export function actionPlan(model) {
 export function loadInsights(model, load) {
   const out = [];
   if (!load?.byStatus) return out;
-  const total = Math.max(1, load.total || 0);
   for (const wf of model.workflows) {
     const init = wf.transitions.find((t) => t.isInitial)?.to?.ref;
+    // Counts of this workflow's own issue types when the project has several workflows (see getStatusLoad)
+    const own = load.byWorkflow?.[wf.id];
+    const byStatus = own?.byStatus || load.byStatus;
+    const total = Math.max(1, own ? own.total || 0 : load.total || 0);
+    // A workflow (or project) without any issues says nothing about which statuses are needed
+    const all = own && own.all !== undefined ? own.all : load.all;
     for (const s of wf.statuses) {
-      const l = load.byStatus[s.id];
+      const l = byStatus[s.id];
       if (!l) continue;
       if (s.category !== 'DONE' && l.count >= 5 && l.count / total >= 0.3) out.push({ code: 'BOTTLENECK', severity: 'medium', wfId: wf.id, wfName: wf.name, status: s.name, statusId: s.id, count: l.count, share: Math.round((100 * l.count) / total) });
       if (s.category !== 'DONE' && l.stale >= 3 && l.stale / Math.max(1, l.count) >= 0.5) out.push({ code: 'STALE', severity: 'medium', wfId: wf.id, wfName: wf.name, status: s.name, statusId: s.id, count: l.count, stale: l.stale, days: load.staleDays });
-      // An empty project says nothing about which statuses are needed
-      if (load.all !== 0 && l.count === 0 && l.ever === 0 && s.ref !== init) out.push({ code: 'NEVER_USED', severity: 'low', wfId: wf.id, wfName: wf.name, status: s.name, statusId: s.id });
+      if (all !== 0 && l.count === 0 && l.ever === 0 && s.ref !== init) out.push({ code: 'NEVER_USED', severity: 'low', wfId: wf.id, wfName: wf.name, status: s.name, statusId: s.id });
     }
   }
   return out;

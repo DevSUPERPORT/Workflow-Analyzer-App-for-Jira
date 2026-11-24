@@ -277,7 +277,8 @@ export default function App() {
     setLoadState('loading');
     try {
       const ids = [...new Set(allWorkflows.flatMap((w) => w.statuses.map((s) => s.id)).filter(Boolean))];
-      setLoad(await call('getStatusLoad', { statusIds: ids, staleDays: days }));
+      const workflows = allWorkflows.map((w) => ({ id: w.id, issueTypeIds: w.issueTypes.map((i) => String(i.id)), statusIds: w.statuses.map((s) => s.id).filter(Boolean) }));
+      setLoad(await call('getStatusLoad', { statusIds: ids, staleDays: days, workflows }));
       setLoadState('ready');
     } catch {
       setLoadState('error');
@@ -475,7 +476,8 @@ export default function App() {
   const tabs = tabGroups.flat();
   const drawerData = drawer ? findTransition(drawer) : null;
   tabsRef.current = tabs.map((x) => x[0]);
-  const changedSinceVisit = visit?.state?.lastChangeAt && (!visit.lastSeen || visit.state.lastChangeAt > visit.lastSeen);
+  // Older versions could record a change with 0 differences – never announce those
+  const changedSinceVisit = visit?.state?.lastChangeAt && visit.state.lastChangeCount > 0 && (!visit.lastSeen || visit.state.lastChangeAt > visit.lastSeen);
   const heading = site ? t('app.subtitleSite') : project?.name || ctx?.extension?.project?.key || t('app.title');
   const refresh = site ? scanSite : () => loadProject({ silent: true });
 

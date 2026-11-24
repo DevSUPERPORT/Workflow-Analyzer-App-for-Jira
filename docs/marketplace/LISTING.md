@@ -129,6 +129,7 @@ AI plan). App Status can lower the budget for individual sites (`sites`). Free t
 | `read:jira-user` | Check the signed-in user's permissions and show user and group names referenced in workflow rules (e.g. inactive users) |
 | `manage:jira-configuration` | Workflows are site configuration in Jira: applying and rolling back Autopilot plans (`workflows/update`) needs this scope. Company-managed workflows only for Jira admins; every change is user-confirmed, validated by Jira and backed up |
 | `storage:app` | The app's own data in Forge storage: change plans and backups, snapshots, notes, monitoring state, preferences, AI switch and usage meter |
+| `report:personal-data` | Atlassian's Personal Data Reporting API: the app reports the account IDs it stores and deletes them when Atlassian reports an account as closed (GDPR) |
 
 Also declared: the Forge LLM module (`llm`, model Claude) and the Rovo agent "Workflow Analyst". Both are AI features, off until a Jira
 admin turns them on.

@@ -11,7 +11,7 @@
  * @updated     2026-11-05
  */
 
-import { getProjectBundle, getStatusLoad, getCreatableIssueTypes, createIssue } from './lib/jira.js';
+import { getProjectBundle, getStatusLoad, getCreatableIssueTypes, createIssue, loadScopes } from './lib/jira.js';
 import { getRemediation, addRemediation } from './lib/store.js';
 import { resolutionAudit, resolutionIssues } from './lib/issues.js';
 import { simulatePersona, personaFor, compareWorkflows, similarPairs, loadInsights, findingToIssue } from './shared/insights.js';
@@ -151,7 +151,7 @@ export async function actStatusLoad(payload) {
   if (error) return { error };
   const lang = normalizeLang(payload?.language);
   const ids = [...new Set(model.workflows.flatMap((w) => w.statuses.map((s) => s.id)).filter(Boolean))];
-  const data = await getStatusLoad(model.project.key, ids, payload?.staleDays || 30);
+  const data = await getStatusLoad(model.project.key, ids, payload?.staleDays || 30, loadScopes(model));
   const names = new Map(model.workflows.flatMap((w) => w.statuses.map((s) => [s.id, `${s.name} [${s.category}]`])));
   return {
     project: model.project.key,
@@ -267,7 +267,13 @@ async function projectFor(payload) {
   return { project: { id: model.project.id, key: model.project.key }, model };
 }
 
-export async function actPlanChange(payload) {
+/** The Rovo user as plan author (account ID only), so the audit trail shows who applied a change. */
+const actor = (context) => {
+  const id = context?.principal?.accountId || context?.accountId || null;
+  return id ? { accountId: String(id) } : null;
+};
+
+export async function actPlanChange(payload, context) {
   const { project, model, error } = await projectFor(payload);
   if (error) return { error };
   const lang = normalizeLang(payload?.language);
@@ -290,15 +296,17 @@ export async function actPlanChange(payload) {
     if (!payload?.workflowName && proposal.workflow) payload.workflowName = proposal.workflow;
   }
   if (!ops?.length) return { error: explanation || 'No change operations could be derived from the request. Ask the user for more details.' };
-  const plan = await plans.createPlan({ project, workflowName: payload?.workflowName, ops, instructions: payload?.instructions, explanation, source: 'rovo', user: null, lang });
+  const plan = await plans.createPlan({ project, workflowName: payload?.workflowName, ops, instructions: payload?.instructions, explanation, source: 'rovo', user: actor(context), lang });
   return { ...planSummary(plan, lang), explanation, nextStep: 'Show this plan to the user. Only after explicit confirmation call apply-workflow-change with this planId.' };
 }
 
-export async function actApplyChange(payload) {
+
+
+export async function actApplyChange(payload, context) {
   const { project, error } = await projectFor(payload);
   if (error) return { error };
   try {
-    const plan = await plans.applyPlan({ project, planId: String(payload?.planId || ''), confirmShared: String(payload?.confirmSharedWorkflow) === 'true', user: null });
+    const plan = await plans.applyPlan({ project, planId: String(payload?.planId || ''), confirmShared: String(payload?.confirmSharedWorkflow) === 'true', user: actor(context) });
     return { ...planSummary(plan, normalizeLang(payload?.language)), rollback: plan.status === 'applied' ? `Can be undone with rollback-workflow-change planId ${plan.id}` : undefined };
   } catch (e) {
     if (e?.code === 'SHARED_CONFIRM') return { error: `${e.message}. Ask the user to confirm the change for all these projects, then call again with confirmSharedWorkflow=true.` };
@@ -306,24 +314,24 @@ export async function actApplyChange(payload) {
   }
 }
 
-export async function actRollbackChange(payload) {
+export async function actRollbackChange(payload, context) {
   const { project, error } = await projectFor(payload);
   if (error) return { error };
   try {
-    return planSummary(await plans.rollbackPlan({ project, planId: String(payload?.planId || ''), confirmOverwrite: String(payload?.confirmOverwrite) === 'true', user: null }), normalizeLang(payload?.language));
+    return planSummary(await plans.rollbackPlan({ project, planId: String(payload?.planId || ''), confirmOverwrite: String(payload?.confirmOverwrite) === 'true', user: actor(context) }), normalizeLang(payload?.language));
   } catch (e) {
     return { error: String(e?.message || e) };
   }
 }
 
-export async function actAutofix(payload) {
+export async function actAutofix(payload, context) {
   const { project, model, error } = await projectFor(payload);
   if (error) return { error };
   const lang = normalizeLang(payload?.language);
   const wf = payload?.workflowName ? model.workflows.find((w) => w.name.toLowerCase().includes(String(payload.workflowName).toLowerCase())) : null;
   let plan;
   try {
-    plan = await plans.createAutofixPlan({ project, workflowId: wf?.id, user: null, lang });
+    plan = await plans.createAutofixPlan({ project, workflowId: wf?.id, user: actor(context), lang });
   } catch (e) {
     if (e?.code === 'NOTHING_TO_FIX') return { error: `${e.message} Suggest plan-workflow-change or remediation tasks for the remaining findings instead.` };
     throw e;

@@ -45,14 +45,14 @@ copies (snapshots, rollback backups) can contain account IDs of users that Jira'
 
 | Control | Implementation |
 |---|---|
-| Authentication | Forge-signed context only; project and account come from Forge, never from the payload (`src/index.js`). |
+| Authentication | Forge-signed context only: the project page uses the project and account from Forge (`src/index.js`). Where a project key is given (Rovo actions, the site page), the user's own Jira permissions on that project are checked live before anything is read or changed. |
 | Authorization | Every resolver re-checks the caller's Jira permissions (`src/lib/auth.js`): project admins for their project, Jira admins for the site page and company-managed workflows. |
 | Changes | Only after explicit confirmation; validated by Jira before applying; a backup and snapshot are stored first; rollback refuses to overwrite later changes by colleagues. |
 | AI controls | Off by default; only Jira admins switch it on; SUPERPORT's vendor stop and a monthly budget per site (20 € by default, `AI_BUDGET`, `src/lib/aiBudget.js`). |
 | Licensing | Without an active Marketplace licence every resolver and Rovo action refuses (`src/lib/license.js`); the daily monitor runs only on licensed sites (`filter.appIsLicensed`). |
 | Kill switch | SUPERPORT can make the app read-only or unavailable via `APP_MAINTENANCE` during incidents (`src/lib/maintenance.js`); customers see a notice and the status page link. |
 | Encryption | In transit and at rest, provided by Atlassian Forge. |
-| Tests | 163 automated tests, including security (cross-project access, hostile payloads, prototype pollution, double apply, rate limits), the AI budget and the licence gate. |
+| Tests | 190+ automated tests, including security (cross-project access, hostile payloads, prototype pollution, double apply, rate limits), the AI budget and the licence gate. |
 
 ## Uninstall and data deletion
 

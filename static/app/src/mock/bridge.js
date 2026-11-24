@@ -248,7 +248,11 @@ async function invokeRaw(name, payload = {}) {
       const byStatus = {};
       const counts = { 10289: 4, 10288: 3, 10290: 2, 10640: 14, 10339: 2, 10341: 3, 10300: 1, 10286: 40, 10287: 25, 10301: 6, 10999: 0, 10291: 1, 10292: 2, 10302: 3, 10338: 2, 1: 5, 3: 4, 10001: 18 };
       for (const id of payload.statusIds) byStatus[id] = { count: counts[id] ?? 0, stale: id === '10640' ? 9 : id === '10302' ? 2 : 0, ever: counts[id] ? counts[id] + 3 : id === '10999' ? 0 : 2 };
-      return ok({ byStatus, total: 46, all: 135, staleDays: payload.staleDays || 30, at: new Date().toISOString() });
+      // Several workflows: each counts its own issue types – the demo splits the project's issues between them
+      const byWorkflow = {};
+      const wfs = (payload.workflows || []).filter((w) => w.issueTypeIds?.length);
+      if (wfs.length > 1) wfs.forEach((w, k) => { byWorkflow[w.id] = { byStatus: Object.fromEntries(w.statusIds.map((id) => [id, k ? { ...byStatus[id], count: Math.floor((byStatus[id]?.count || 0) / 3), stale: 0 } : byStatus[id]])), total: k ? 12 : 34, all: k ? 20 : 90 }; });
+      return ok({ byStatus, byWorkflow, total: 46, all: 135, staleDays: payload.staleDays || 30, at: new Date().toISOString() });
     }
     case 'getIssueTypes':
       return ok([{ id: '10010', name: 'Aufgabe' }, { id: '10011', name: 'Bug' }]);

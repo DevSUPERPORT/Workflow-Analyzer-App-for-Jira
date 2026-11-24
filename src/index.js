@@ -190,7 +190,8 @@ define('setAiSettings', async ({ enabled }, context) => {
   await assertJiraAdmin();
   const user = await me();
   await store.setAiEnabled(enabled, { accountId: context.accountId || user?.accountId, displayName: user?.displayName });
-  console.log(`[ai-settings] AI features turned ${enabled ? 'on' : 'off'} by ${context.accountId || 'unknown'}`);
+  // No account ID in the logs (personal data) – who changed it is kept in the app's own AI settings history
+  console.log(`[ai-settings] AI features turned ${enabled ? 'on' : 'off'}`);
   return aiSettingsView();
 });
 
@@ -307,15 +308,17 @@ define('siteProjects', async ({ workflowIds }, context) => {
 
 // ---------------------------------------------------------------- phase 2: live load, remediation, monitoring
 
-define('getStatusLoad', async ({ statusIds, staleDays }, context) => {
+define('getStatusLoad', async ({ statusIds, staleDays, workflows }, context) => {
   const project = await requireAccess(context);
   if (!project) throw new ForbiddenError('FORBIDDEN_PROJECT');
-  return getStatusLoad(project.key, Array.isArray(statusIds) ? statusIds : [], staleDays);
+  // The project key comes from the Forge context; payload IDs only narrow the counts and are filtered to digits
+  return getStatusLoad(project.key, Array.isArray(statusIds) ? statusIds : [], staleDays, workflows);
 });
 
 define('getIssueTypes', async ({ projectKey }, context) => {
   const project = await requireAccess(context);
-  return getCreatableIssueTypes(String(projectKey || project?.key || '').toUpperCase());
+  // Project page: always the page's own project (Forge context); the site page (Jira admins) may name one
+  return getCreatableIssueTypes(String(project?.key || projectKey || '').toUpperCase());
 });
 
 define('getRemediation', async (_p, context) => {
@@ -326,7 +329,9 @@ define('getRemediation', async (_p, context) => {
 define('createRemediation', async ({ items, issueTypeId, projectKey }, context) => {
   const project = await requireAccess(context);
   if (!project) throw new ForbiddenError('FORBIDDEN_PROJECT');
-  const target = String(projectKey || project.key).toUpperCase();
+  // Tasks are always created in the page's own project (Forge context), never in a project named by the payload
+  void projectKey;
+  const target = String(project.key).toUpperCase();
   const existing = await store.getRemediation(project.id);
   const created = [];
   const skipped = [];

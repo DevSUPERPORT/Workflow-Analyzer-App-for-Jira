@@ -12,14 +12,20 @@
 
 import { useState } from 'react';
 import { useT } from '../lib/i18n.jsx';
-import { useApp, Kpi, ScoreRing, scoreLabelKey, VendorBadge, EmptyState } from './common.jsx';
+import { useApp, Kpi, ScoreRing, scoreLabelKey, VendorBadge, EmptyState, rowAction } from './common.jsx';
 import Icon from './Icon.jsx';
 import { REF_TYPES } from '../../../../src/shared/rules.js';
 import { governance, actionPlan } from '../../../../src/shared/insights.js';
+import { healthScore } from '../../../../src/shared/engine.js';
 
 const START_HINT = 'superport.wfa.startHintHidden';
 
 const tone = (score) => (score >= 80 ? 'var(--ok)' : score >= 55 ? 'var(--accent)' : 'var(--high)');
+
+/** "1 critical · 3 warnings · 2 hints" – only the severities that occur, singular/plural per language. */
+export function sevCounts(t, c) {
+  return ['high', 'medium', 'low'].filter((k) => c[k] > 0).map((k) => t(c[k] === 1 ? `ov.n.${k}1` : `ov.n.${k}`, { n: c[k] })).join(' · ');
+}
 
 export default function Overview({ model, workflows }) {
   const t = useT();
@@ -56,7 +62,7 @@ export default function Overview({ model, workflows }) {
           <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
             <span className="l">{t('ov.health')}</span>
             <span style={{ fontSize: 18, fontWeight: 500 }}>{t(scoreLabelKey(s.healthScore))}</span>
-            <span className="s">{s.findings.high} {t('ov.severity.high')} · {s.findings.medium} {t('ov.severity.medium')}</span>
+            <span className="s">{sevCounts(t, s.findings) || t('ov.scoreGood')}</span>
           </span>
         </button>
         <Kpi value={s.workflows} label={t('ov.workflows')} sub={`${s.statuses} ${t('ov.statuses')} · ${s.transitions} ${t('ov.transitions')}`} onClick={() => actions.setTab('transitions')} />
@@ -139,8 +145,10 @@ export default function Overview({ model, workflows }) {
             <tbody>
               {workflows.map((wf) => {
                 const fs = model.findings.filter((f) => f.wfId === wf.id && f.severity !== 'info');
-                const hi = fs.filter((f) => f.severity === 'high').length;
-                const wfScore = Math.max(0, 100 - hi * 15 - (fs.length - hi) * 4);
+                // Same score as everywhere else (engine healthScore), counts per severity – hints are not warnings
+                const wfScore = healthScore(fs, wf.transitions.length);
+                const counts = { high: 0, medium: 0, low: 0 };
+                for (const f of fs) counts[f.severity] = (counts[f.severity] || 0) + 1;
                 const editable = actions.canChange?.(wf);
                 return (
                   <tr key={wf.id}>
@@ -157,7 +165,7 @@ export default function Overview({ model, workflows }) {
                     <td>
                       <span className="meter">
                         <span className="bar"><span style={{ width: `${wfScore}%`, background: tone(wfScore) }} /></span>
-                        <span className="small muted nowrap">{fs.length === 0 ? t('ov.scoreGood') : `${hi ? `${hi} ${t('ov.severity.high')} · ` : ''}${fs.length - hi} ${t('ov.severity.medium')}`}</span>
+                        <span className="small muted nowrap">{fs.length === 0 ? t('ov.scoreGood') : sevCounts(t, counts)}</span>
                       </span>
                     </td>
                     <td className="nowrap small muted">{t.date(wf.updated, false)}</td>
@@ -190,7 +198,7 @@ export default function Overview({ model, workflows }) {
               </thead>
               <tbody>
                 {apps.map((a) => (
-                  <tr key={a.key} className="clickable" onClick={() => actions.openRef('app', a.key)}>
+                  <tr key={a.key} className="clickable" {...rowAction(() => actions.openRef('app', a.key))}>
                     <td>
                       <button type="button" className="link-btn" style={{ textDecoration: 'none', color: 'var(--text)' }} onClick={(e) => { e.stopPropagation(); actions.openRef('app', a.key); }}><VendorBadge vendor={a} /></button>
                       {a.maker && <span className="muted small"> {a.maker}</span>}

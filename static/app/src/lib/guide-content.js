@@ -147,7 +147,7 @@ export const GUIDE = {
         title: 'Document and share',
         minutes: 2,
         steps: [
-          { title: 'Export', text: 'HTML (interactive single file, also for the Confluence HTML macro), PDF (print-ready), CSV (Excel) and JSON. Customer code and workflow label control the file name as before.', tab: 'export', tabLabel: 'Export' },
+          { title: 'Export', text: 'HTML (interactive single file, also for the Confluence HTML macro), PDF (print-ready), CSV (Excel) and JSON. Every export explains each workflow in plain words: a verdict, the usual path from start to done (who may take each step, what Jira checks, what happens automatically and why), other routes, prioritised improvements with the reason and the fix, every transition explained and a glossary – the full rule table follows for administrators. Customer code and workflow label control the file name as before.', tab: 'export', tabLabel: 'Export' },
           { title: 'Share responsibly', text: 'Exports contain user, group and field names. Store them in internal spaces only.' },
         ],
       },
@@ -280,7 +280,7 @@ export const GUIDE = {
         title: 'Dokumentieren und teilen',
         minutes: 2,
         steps: [
-          { title: 'Export', text: 'HTML (interaktive Einzeldatei, auch für das Confluence-HTML-Makro), PDF (druckfertig), CSV (Excel) und JSON. Kunden-Kürzel und Workflow-Bezeichnung steuern wie gewohnt den Dateinamen.', tab: 'export', tabLabel: 'Export' },
+          { title: 'Export', text: 'HTML (interaktive Einzeldatei, auch für das Confluence-HTML-Makro), PDF (druckfertig), CSV (Excel) und JSON. Jeder Export erklärt jeden Workflow in einfachen Worten: eine Bewertung, den üblichen Weg vom Start bis zum Ende (wer welchen Schritt ausführen darf, was Jira prüft, was automatisch passiert und warum), andere Wege, priorisierte Verbesserungen mit Grund und Lösung, jede Transition erklärt und ein Glossar – die vollständige Regeltabelle folgt für Administratoren. Kunden-Kürzel und Workflow-Bezeichnung steuern wie gewohnt den Dateinamen.', tab: 'export', tabLabel: 'Export' },
           { title: 'Verantwortungsvoll teilen', text: 'Exporte enthalten Benutzer-, Gruppen- und Feldnamen. Nur in internen Bereichen ablegen.' },
         ],
       },

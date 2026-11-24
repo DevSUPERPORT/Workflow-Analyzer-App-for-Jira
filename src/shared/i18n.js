@@ -12,6 +12,7 @@
  */
 
 import { en2, de2 } from './i18n-phase2.js';
+import { en3, de3 } from './i18n-guide.js';
 
 export const LANGS = ['en', 'de'];
 
@@ -314,7 +315,7 @@ const en = {
 
   // Export
   'ex.title': 'Export documentation',
-  'ex.intro': 'Create a complete, self-contained documentation of the analysed workflows.',
+  'ex.intro': 'Create a complete, self-contained documentation of the analysed workflows – written so that everyone understands how work moves, why each rule exists and what should be improved.',
   'ex.customer': 'Customer code',
   'ex.customerHint': 'optional, e.g. SCS, APG …',
   'ex.label': 'Workflow label',
@@ -328,16 +329,16 @@ const en = {
   'ex.incTransitions': 'Transition table',
   'ex.incImpact': 'Dependencies',
   'ex.incHealth': 'Health check',
-  'ex.incExplain': 'Plain-language explanations',
+  'ex.incExplain': 'Plain-language guide (usual path, why, glossary)',
   'ex.incNotes': 'Team notes',
   'ex.html': 'Download HTML',
   'ex.pdf': 'Download PDF',
   'ex.csv': 'Download CSV',
   'ex.json': 'Download JSON',
-  'ex.htmlHint': 'Interactive, single file. Open locally or paste into a Confluence HTML macro.',
-  'ex.pdfHint': 'Print-ready report for audits and sign-offs.',
-  'ex.csvHint': 'Transition matrix for Excel (semicolon separated).',
-  'ex.jsonHint': 'Raw analysis for further processing.',
+  'ex.htmlHint': 'Interactive guide in one file: summary, usual path, improvements, every transition explained, search and filters. Open locally, print or paste into a Confluence HTML macro.',
+  'ex.pdfHint': 'Print-ready report for audits and sign-offs, with the same plain-language guide and improvement plan.',
+  'ex.csvHint': 'Transition matrix for Excel (semicolon separated) incl. what happens, who, why and how to fix problems.',
+  'ex.jsonHint': 'Full analysis for further processing, incl. the plain-language guide per workflow.',
   'ex.done': '{file} created.',
   'ex.generating': 'Generating …',
   'ex.toc': 'Contents',
@@ -788,7 +789,7 @@ const de = {
   'as.pickTransition': 'Transition auswählen …',
 
   'ex.title': 'Dokumentation exportieren',
-  'ex.intro': 'Erstellt eine vollständige, eigenständige Dokumentation der analysierten Workflows.',
+  'ex.intro': 'Erstellt eine vollständige, eigenständige Dokumentation der analysierten Workflows – so geschrieben, dass jeder versteht, wie die Arbeit läuft, warum es jede Regel gibt und was verbessert werden sollte.',
   'ex.customer': 'Kunden-Kürzel',
   'ex.customerHint': 'optional, z. B. SCS, APG …',
   'ex.label': 'Workflow-Bezeichnung',
@@ -802,16 +803,16 @@ const de = {
   'ex.incTransitions': 'Transitionstabelle',
   'ex.incImpact': 'Abhängigkeiten',
   'ex.incHealth': 'Prüfung',
-  'ex.incExplain': 'Klartext-Erklärungen',
+  'ex.incExplain': 'Klartext-Leitfaden (üblicher Weg, Warum, Glossar)',
   'ex.incNotes': 'Team-Notizen',
   'ex.html': 'HTML herunterladen',
   'ex.pdf': 'PDF herunterladen',
   'ex.csv': 'CSV herunterladen',
   'ex.json': 'JSON herunterladen',
-  'ex.htmlHint': 'Interaktiv, eine Datei. Lokal öffnen oder in ein Confluence-HTML-Makro einfügen.',
-  'ex.pdfHint': 'Druckfertiger Bericht für Audits und Freigaben.',
-  'ex.csvHint': 'Transitionsmatrix für Excel (Semikolon-getrennt).',
-  'ex.jsonHint': 'Rohdaten der Analyse zur Weiterverarbeitung.',
+  'ex.htmlHint': 'Interaktiver Leitfaden in einer Datei: Zusammenfassung, üblicher Weg, Verbesserungen, jede Transition erklärt, Suche und Filter. Lokal öffnen, drucken oder in ein Confluence-HTML-Makro einfügen.',
+  'ex.pdfHint': 'Druckfertiger Bericht für Audits und Freigaben, mit demselben Klartext-Leitfaden und Verbesserungsplan.',
+  'ex.csvHint': 'Transitionsmatrix für Excel (Semikolon-getrennt) inkl. was passiert, wer, warum und wie Probleme behoben werden.',
+  'ex.jsonHint': 'Vollständige Analyse zur Weiterverarbeitung, inkl. Klartext-Leitfaden pro Workflow.',
   'ex.done': '{file} erstellt.',
   'ex.generating': 'Wird erstellt …',
   'ex.toc': 'Inhalt',
@@ -972,8 +973,8 @@ const de = {
   'site.limit': 'Nur die ersten {n} Workflows wurden analysiert.',
 };
 
-Object.assign(en, en2);
-Object.assign(de, de2);
+Object.assign(en, en2, en3);
+Object.assign(de, de2, de3);
 export const DICT = { en, de };
 
 export function normalizeLang(l) {

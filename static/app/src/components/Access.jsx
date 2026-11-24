@@ -12,7 +12,7 @@
 
 import { useMemo, useState } from 'react';
 import { useT } from '../lib/i18n.jsx';
-import { useApp, StatusPill } from './common.jsx';
+import { useApp, StatusPill, rowAction } from './common.jsx';
 import { collectPrincipals, simulatePersona, findPaths, accessMatrix, personaFromSelection } from '../../../../src/shared/insights.js';
 import { describeConditionTree } from '../../../../src/shared/explain.js';
 import { downloadText } from '../lib/download.js';
@@ -154,7 +154,7 @@ export default function Access({ model, workflows, persona, setPersona }) {
                         const s = sim[x.key];
                         const why = [...new Set((s?.reasons || []).filter((r) => r.v !== true).map((r) => r.why).filter(Boolean))];
                         return (
-                          <tr key={x.key} className="clickable" onClick={() => actions.openTransition(x.key)}>
+                          <tr key={x.key} className="clickable" {...rowAction(() => actions.openTransition(x.key))}>
                             <td style={{ width: 120 }}><StateChip state={s?.state || 'maybe'} /></td>
                             <td style={{ width: '30%' }}><strong>{x.name}</strong> <span className="muted">→ {x.to?.name}</span>{x.isGlobal && <span className="chip" style={{ marginLeft: 6 }}>{t('tt.type.GLOBAL')}</span>}</td>
                             <td className="small">{describeConditionTree(x.conditions, t.lang) || <span className="muted">{t('x.tNoConditions')}</span>}{why.length > 0 && <div className="muted">{why.map((w) => t(w)).join(' · ')}</div>}</td>
@@ -181,13 +181,13 @@ export default function Access({ model, workflows, persona, setPersona }) {
               <thead>
                 <tr>
                   <th>{t('tt.col.transition')}</th>
-                  <th>{t('acc.everyone')}</th>
-                  {matrix.principals.map((p) => <th key={`${p.type}:${p.id}`} style={{ whiteSpace: 'normal', minWidth: 90 }}>{principalLabel(p, t)}</th>)}
+                  <th style={{ textAlign: 'center', width: 110 }}>{t('acc.everyone')}</th>
+                  {matrix.principals.map((p) => <th key={`${p.type}:${p.id}`} style={{ whiteSpace: 'normal', minWidth: 90, width: 120, textAlign: 'center' }}>{principalLabel(p, t)}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {matrix.rows.map((r) => (
-                  <tr key={r.t.key} className="clickable" onClick={() => actions.openTransition(r.t.key)}>
+                  <tr key={r.t.key} className="clickable" {...rowAction(() => actions.openTransition(r.t.key))}>
                     <td><strong>{r.t.name}</strong><div className="small muted">{workflows.length > 1 ? `${r.wf.name} · ` : ''}{r.t.from.map((f) => f.name).join(', ') || t('tt.any')} → {r.t.to?.name || t('tt.loop')}</div></td>
                     <td style={{ textAlign: 'center' }}><Mark s={r.everyone} /></td>
                     {r.cells.map((c, i) => <td key={i} style={{ textAlign: 'center' }}><Mark s={c} /></td>)}

@@ -24,6 +24,18 @@ import { isAiOn } from '../lib/aiState.js';
 export const AppContext = createContext({ model: null, notes: {}, actions: {}, caps: {}, ai: { enabled: false, set: () => {} }, staticRender: false });
 export const useApp = () => useContext(AppContext);
 
+/** Props that make a clickable table row usable with the keyboard (focus + Enter / Space). */
+export const rowAction = (fn) => ({
+  tabIndex: 0,
+  onClick: fn,
+  onKeyDown: (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fn();
+    }
+  },
+});
+
 export function Hl({ text, q }) {
   const s = String(text ?? '');
   if (!q || q.length < 2) return s;

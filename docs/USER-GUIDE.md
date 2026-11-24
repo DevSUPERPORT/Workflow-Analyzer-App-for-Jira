@@ -76,7 +76,7 @@ Die KI-Funktionen (KI-Chat, „Mit KI planen“, Bulk „Beschreiben (KI)“ und
 
 ## 8. Dokumentieren und teilen
 
-1. **Export** – HTML (interaktive Einzeldatei, auch für das Confluence-HTML-Makro), PDF (druckfertig), CSV (Excel) und JSON. Kunden-Kürzel und Workflow-Bezeichnung steuern wie gewohnt den Dateinamen.
+1. **Export** – HTML (interaktive Einzeldatei, auch für das Confluence-HTML-Makro), PDF (druckfertig), CSV (Excel) und JSON. Jeder Export erklärt jeden Workflow in einfachen Worten: eine Bewertung, den üblichen Weg vom Start bis zum Ende (wer welchen Schritt ausführen darf, was Jira prüft, was automatisch passiert und warum), andere Wege, priorisierte Verbesserungen mit Grund und Lösung, jede Transition erklärt und ein Glossar – die vollständige Regeltabelle folgt für Administratoren. Kunden-Kürzel und Workflow-Bezeichnung steuern wie gewohnt den Dateinamen.
 2. **Verantwortungsvoll teilen** – Exporte enthalten Benutzer-, Gruppen- und Feldnamen. Nur in internen Bereichen ablegen.
 
 ## 9. Plattformgrenzen
@@ -199,7 +199,7 @@ The AI features (AI chat, "Plan with AI", Bulk "Describe (AI)" and the Rovo agen
 
 ## 8. Document and share
 
-1. **Export** – HTML (interactive single file, also for the Confluence HTML macro), PDF (print-ready), CSV (Excel) and JSON. Customer code and workflow label control the file name as before.
+1. **Export** – HTML (interactive single file, also for the Confluence HTML macro), PDF (print-ready), CSV (Excel) and JSON. Every export explains each workflow in plain words: a verdict, the usual path from start to done (who may take each step, what Jira checks, what happens automatically and why), other routes, prioritised improvements with the reason and the fix, every transition explained and a glossary – the full rule table follows for administrators. Customer code and workflow label control the file name as before.
 2. **Share responsibly** – Exports contain user, group and field names. Store them in internal spaces only.
 
 ## 9. Platform limits

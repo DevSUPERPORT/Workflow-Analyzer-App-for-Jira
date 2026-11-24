@@ -363,6 +363,8 @@ export class FakeJira {
     if (/status WAS (\d+)/.test(jql)) list = list.filter((i) => i.statusId === /status WAS (\d+)/.exec(jql)[1]);
     const it = /issuetype = (\d+)/.exec(jql);
     if (it) list = list.filter((i) => i.issueTypeId === it[1]);
+    const its = /issuetype in \(([\d, ]+)\)/.exec(jql);
+    if (its) { const set = new Set(its[1].split(',').map((x) => x.trim())); list = list.filter((i) => set.has(i.issueTypeId)); }
     if (/statusCategory != Done/.test(jql)) list = list.filter((i) => this.statuses.get(i.statusId)?.statusCategory !== 'DONE');
     else if (/statusCategory = Done/.test(jql)) list = list.filter((i) => this.statuses.get(i.statusId)?.statusCategory === 'DONE');
     if (/resolution is EMPTY/.test(jql)) list = list.filter((i) => !i.resolution);

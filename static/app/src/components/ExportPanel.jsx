@@ -7,7 +7,7 @@
  * @author      George Papasotiriou
  * @company     SUPERPORT
  * @created     2026-10-24
- * @updated     2026-11-05
+ * @updated     2026-11-24
  */
 
 import { useEffect, useState } from 'react';
@@ -15,10 +15,11 @@ import { useT } from '../lib/i18n.jsx';
 import { buildHtmlExport } from '../lib/exportHtml.js';
 import { buildPdf, preparePdfAssets } from '../lib/exportPdf.js';
 import { transitionsCsv } from '../lib/exportCsv.js';
-import { downloadBlob, downloadText, exportFilename } from '../lib/download.js';
+import { downloadBlob, exportFilename } from '../lib/download.js';
 import logoWhite from '../assets/superport-wordmark-white.png?inline';
 import logoDark from '../assets/superport-wordmark-dark.png?inline';
 import Icon from './Icon.jsx';
+import { workflowStory, siteStory, exportGlossary, exportScope } from '../../../../src/shared/story.js';
 
 const PREF = 'superport.wfa.export';
 
@@ -37,21 +38,28 @@ export function defaultExportOpts(lang) {
   };
 }
 
-// Shared by the panel and the "export selection" action in the transitions table.
-export function runExport(format, { model, workflows, notes, opts, assets }) {
+/** Builds an export file: { blob, filename }. */
+export function buildExport(format, { model, workflows, notes, opts, assets }) {
   const fallback = workflows.length === 1 ? workflows[0].name : model.project?.key || 'Site';
   const filename = exportFilename({ customer: opts.customer, label: opts.label, fallback, ext: format });
-  if (format === 'html') {
-    downloadText(buildHtmlExport({ model, workflows, notes, opts, logo: logoWhite }), filename, 'text/html;charset=utf-8');
-  } else if (format === 'pdf') {
-    const doc = buildPdf({ model, workflows, notes, opts, assets, logoWhite, logoDark });
-    downloadBlob(doc.output('blob'), filename);
-  } else if (format === 'csv') {
-    downloadText(transitionsCsv(model, workflows, opts.lang, notes, opts.onlyKeys ? new Set(opts.onlyKeys) : null), filename, 'text/csv;charset=utf-8');
-  } else if (format === 'json') {
-    const { index, ...rest } = model;
-    downloadText(JSON.stringify({ ...rest, workflows, index }, null, 2), filename, 'application/json');
-  }
+  const text = (s, type) => ({ blob: new Blob([s], { type }), filename });
+  if (format === 'html') return text(buildHtmlExport({ model, workflows, notes, opts, logo: logoWhite }), 'text/html;charset=utf-8');
+  if (format === 'pdf') return { blob: buildPdf({ model, workflows, notes, opts, assets, logoWhite, logoDark }).output('blob'), filename };
+  if (format === 'csv') return text(transitionsCsv(model, workflows, opts.lang, notes, opts.onlyKeys ? new Set(opts.onlyKeys) : null), 'text/csv;charset=utf-8');
+  const { index, ...rest } = model;
+  // The plain-language guide next to the raw analysis, so scripts and BI tools get the same explanations
+  const scoped = { ...model, findings: exportScope(model, workflows, opts.onlyKeys).findings };
+  const guide = { site: siteStory(scoped, opts.lang), workflows: workflows.map((wf) => workflowStory(scoped, wf, opts.lang)), glossary: exportGlossary(opts.lang) };
+  return text(JSON.stringify({ ...rest, workflows, index, guide }, null, 2), 'application/json');
+}
+
+/** Browsers only allow a download shortly after the click: builds slower than this are saved with a second click. */
+export const SLOW_EXPORT_MS = 3000;
+
+// Shared by the panel and the "export selection" action in the transitions table.
+export function runExport(format, args) {
+  const { blob, filename } = buildExport(format, args);
+  downloadBlob(blob, filename);
   return filename;
 }
 
@@ -76,11 +84,24 @@ export default function ExportPanel({ model, workflows, allWorkflows, notes, toa
   const set = (patch) => setOpts((o) => ({ ...o, ...patch }));
   const setInc = (k) => setOpts((o) => ({ ...o, include: { ...o.include, [k]: !o.include[k] } }));
 
-  const go = (format) => {
+  const [ready, setReady] = useState(null);
+  const save = (file) => {
+    downloadBlob(file.blob, file.filename);
+    setReady(null);
+    toast(t('ex.done', { file: file.filename }));
+  };
+  const go = async (format) => {
     setBusy(format);
+    setReady(null);
+    // Let "Generating …" paint before a long synchronous build (large sites)
+    await new Promise((r) => setTimeout(r, 30));
+    const started = Date.now();
     try {
-      const file = runExport(format, { model, workflows: targetWfs, notes, opts, assets });
-      toast(t('ex.done', { file }));
+      const file = buildExport(format, { model, workflows: targetWfs, notes, opts, assets });
+      const ms = Date.now() - started;
+      console.debug(`[export] ${format} built in ${ms} ms`);
+      if (ms > SLOW_EXPORT_MS) setReady({ ...file, format });
+      else save(file);
     } catch (e) {
       console.error(e);
       toast(e.message);
@@ -137,6 +158,13 @@ export default function ExportPanel({ model, workflows, allWorkflows, notes, toa
           {exportFilename({ customer: opts.customer, label: opts.label, fallback: targetWfs.length === 1 ? targetWfs[0].name : model.project?.key || 'Site', ext: 'html' })}
         </div>
       </div>
+      {ready && (
+        <div className="alert info view" role="status">
+          <Icon name="download" size={18} />
+          <span style={{ flex: 1 }}>{t('ex.ready', { file: ready.filename })}</span>
+          <button type="button" className="btn primary small" onClick={() => save(ready)}>{t('ex.save')}</button>
+        </div>
+      )}
       <div className="export-grid">
         {cards.map((c) => (
           <div key={c.f} className="export-card">

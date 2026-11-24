@@ -13,7 +13,7 @@
 
 import { useMemo, useState } from 'react';
 import { useT } from '../lib/i18n.jsx';
-import { useApp, VendorBadge, EmptyState } from './common.jsx';
+import { useApp, VendorBadge, EmptyState, rowAction } from './common.jsx';
 import { REF_TYPES } from '../../../../src/shared/rules.js';
 import { downloadText } from '../lib/download.js';
 import { toCsv } from '../lib/exportCsv.js';
@@ -132,7 +132,7 @@ export default function Impact({ model, refType, setRefType, refId, setRefId, re
                   </thead>
                   <tbody>
                     {sel.usages.map((u, i) => (
-                      <tr key={i} className="clickable" onClick={() => actions.openTransition(u.tKey)}>
+                      <tr key={i} className="clickable" {...rowAction(() => actions.openTransition(u.tKey))}>
                         <td>{u.wfName}</td>
                         <td><strong>{u.tName}</strong> <span className="muted small">({u.tId})</span></td>
                         <td className="small">{u.from.join(', ') || '*'} → {u.to || t('tt.loop')}</td>
@@ -218,7 +218,7 @@ function BulkCheck({ model, refData, onPick }) {
             <thead><tr><th>{t('im.col.name')}</th><th>{t('im.col.status')}</th><th>{t('im.affected')}</th></tr></thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.name} className={r.entry ? 'clickable' : ''} onClick={() => r.entry && onPick(type, r.entry.id)}>
+                <tr key={r.name} className={r.entry ? 'clickable' : ''} {...(r.entry ? rowAction(() => onPick(type, r.entry.id)) : {})}>
                   <td><strong>{r.name}</strong></td>
                   <td className="nowrap">
                     {r.entry ? <span className="sev high">{t('bulk.inUse')}</span> : r.exists === false ? <span className="sev info">{t('bulk.notFound')}</span> : <span className="chip good">{t('bulk.unused')}</span>}

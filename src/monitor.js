@@ -8,7 +8,7 @@
  * @author      George Papasotiriou
  * @company     SUPERPORT
  * @created     2026-10-24
- * @updated     2026-11-05
+ * @updated     2026-11-24
  */
 
 import { getProjectBundle } from './lib/jira.js';
@@ -30,17 +30,23 @@ export async function monitorProject(project, { by = 'Workflow Analyzer (auto)' 
     await store.saveSnapshot(project.id, { ...snap, label: 'baseline' });
     state.baselineAt = now;
   } else if (prev.hash !== hash) {
-    let changes = [];
+    let changes = null;
     const last = (await store.listSnapshots(project.id))[0];
     if (last) {
       const old = await store.getSnapshot(project.id, last.id);
       if (old) changes = diffSnapshots(old, snap);
     }
-    await store.saveSnapshot(project.id, snap);
-    state.lastChangeAt = now;
-    state.lastChangeCount = changes.length;
-    state.lastChanges = changes.slice(0, 30);
-    state.newHigh = Math.max(0, model.stats.findings.high - (prev.high || 0));
+    // Only a real difference is a change: no earlier snapshot to compare with (or a hash that moved without any
+    // visible difference) just updates the reference, so users never see "changed … (0 differences)".
+    if (changes === null) {
+      await store.saveSnapshot(project.id, { ...snap, label: 'baseline' });
+    } else if (changes.length) {
+      await store.saveSnapshot(project.id, snap);
+      state.lastChangeAt = now;
+      state.lastChangeCount = changes.length;
+      state.lastChanges = changes.slice(0, 30);
+      state.newHigh = Math.max(0, model.stats.findings.high - (prev.high || 0));
+    }
   }
   await store.setMonitorState(project.id, state);
   return state;

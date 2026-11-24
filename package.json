@@ -14,9 +14,9 @@
     "check:i18n": "node scripts/check-i18n.js"
   },
   "dependencies": {
-    "@forge/api": "^8.3.0",
+    "@forge/api": "^8.5.1",
     "@forge/kvs": "^2.1.0",
-    "@forge/llm": "^1.0.8",
+    "@forge/llm": "^1.1.0",
     "@forge/resolver": "^2.0.1"
   }
 }
