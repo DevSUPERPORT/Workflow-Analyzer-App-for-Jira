@@ -1,7 +1,7 @@
 # Marketplace listing: Workflow Analyzer for Jira
 
 Everything to paste into the Atlassian partner portal. Images are in this folder (see [README](README.md)).
-Open decision: the prices (section Pricing).
+All decisions are made; the listing is created only when SUPERPORT says so.
 
 ## Basics
 
@@ -96,7 +96,7 @@ explains them in plain language, finds what is broken and helps you fix it safel
 
 **Runs on Atlassian.** The app stores nothing outside Atlassian's cloud and sends no data anywhere else.
 
-## Pricing (proposal, to confirm)
+## Pricing (confirmed by SUPERPORT on 2026-11-24)
 
 Set in the partner portal under *Pricing* (single and multi-instance the same). Atlassian bills annual subscriptions at 10× the
 monthly price. In line with the other SUPERPORT apps (11–100 users: Screen $0.40, Custom Field $0.60, Group $0.80), one step above
