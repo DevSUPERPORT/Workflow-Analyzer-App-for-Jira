@@ -10,7 +10,7 @@ All decisions are made; the listing is created only when SUPERPORT says so.
 | App name | Workflow Analyzer for Jira |
 | App ID | `ari:cloud:ecosystem::app/66b30dff-8536-4de6-8630-65f355b28bcc` |
 | Hosting | Cloud, Forge, **Runs on Atlassian** (no egress; data in Atlassian's Forge storage; AI through Forge LLMs and Rovo, both run by Atlassian) |
-| Version to list | Production **3.0.0** (tag `workflow-analyzer-20261123-123414`) |
+| Version to list | Production **4.0.0** (tag `workflow-analyzer-20261124-101629`) |
 | Product | Jira (Jira Software, Jira Service Management, Jira Work Management; company-managed and team-managed projects) |
 | Payment model | Paid via Atlassian (manifest `app.licensing.enabled: true`) |
 | Categories | Admin tools; Workflow; Project management |
