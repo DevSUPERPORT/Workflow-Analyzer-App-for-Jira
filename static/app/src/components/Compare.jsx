@@ -66,7 +66,7 @@ export default function Compare({ model }) {
                   <span className="small muted">{t('cmp.summary', { same: cmp.transitionsSame, changed: cmp.transitionsChanged.length, a: cmp.transitionsOnlyA.length, b: cmp.transitionsOnlyB.length })}</span>
                 </div>
                 <div className="bar" style={{ marginTop: 8, height: 10 }}><span style={{ width: `${cmp.score}%` }} /></div>
-                {cmp.score >= 90 && <div className="alert" style={{ marginTop: 10 }}>{t(cmp.score >= 100 ? 'cmp.identical' : 'cmp.consolidate')}</div>}
+                {cmp.score >= 90 && <div className="alert" style={{ marginTop: 10 }}>{t(!cmp.transitionsChanged.length && !cmp.transitionsOnlyA.length && !cmp.transitionsOnlyB.length && !cmp.statusesOnlyA.length && !cmp.statusesOnlyB.length ? 'cmp.identical' : 'cmp.consolidate')}</div>}
               </div>
               <div className="grid two">
                 <div className="card">

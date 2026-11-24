@@ -153,11 +153,13 @@ export class FakeJira {
       return { workflows: wfs, statuses: [...new Map(wfs.flatMap((w) => this.statusesFor(w)).map((s) => [s.id, s])).values()] };
     }
     if (method === 'GET' && p === '/rest/api/3/workflows/search') {
-      const all = [...this.workflows.values()];
+      // like Jira: queryString filters by name; the search (unlike the bulk request) carries created/updated
+      const qs = (q.get('queryString') || '').toLowerCase();
+      const all = [...this.workflows.values()].filter((w) => !qs || w.name.toLowerCase().includes(qs));
       const start = Number(q.get('startAt') || 0);
       const max = Number(q.get('maxResults') || 50);
       const page = all.slice(start, start + max);
-      return { values: page.map((w) => ({ id: w.id, name: w.name })), total: all.length, isLast: start + max >= all.length, startAt: start };
+      return { values: page.map((w) => ({ id: w.id, name: w.name, created: '2026-01-05T09:00:00.000+0000', updated: w.updated || '2026-11-20T14:30:00.000+0000' })), total: all.length, isLast: start + max >= all.length, startAt: start };
     }
     if (method === 'GET' && p === '/rest/api/3/workflows/capabilities') return { systemRules: [], connectRules: [], forgeRules: [] };
     if (method === 'GET' && (m = /^\/rest\/api\/3\/workflow\/([^/]+)\/projectUsages$/.exec(p))) {

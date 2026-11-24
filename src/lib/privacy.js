@@ -177,8 +177,11 @@ const MIGRATION_SOURCES = [...RECORD_PREFIXES, ...OWN_PREFIXES];
  * progress is saved after every page. Returns true once done.
  */
 export async function migrate({ deadline = Date.now() + BUDGET_MS } = {}) {
-  const state = (await kvs.get(MIGRATION)) || { i: 0, cursor: null, singles: false };
-  if (state.done) return true;
+  const saved = (await kvs.get(MIGRATION)) || {};
+  if (saved.done) return true;
+  // progress is kept by prefix name, so a later release that adds or reorders prefixes resumes at the right one
+  const state = { prefix: 'prefix' in saved ? saved.prefix : MIGRATION_SOURCES[0], cursor: saved.cursor || null, singles: !!saved.singles };
+  if (!MIGRATION_SOURCES.includes(state.prefix) && state.prefix !== null) state.prefix = MIGRATION_SOURCES[0];
   const registry = new Map();
   const remember = (id, at) => { if (!id) return; const t = iso(at) || new Date(0).toISOString(); if (!registry.has(id) || registry.get(id) < t) registry.set(id, t); };
   const flush = async () => {
@@ -195,11 +198,21 @@ export async function migrate({ deadline = Date.now() + BUDGET_MS } = {}) {
     await scrubNames(key);
   };
 
-  while (state.i < MIGRATION_SOURCES.length) {
-    const p = await page(MIGRATION_SOURCES[state.i], state.cursor);
+  while (state.prefix !== null) {
+    let p;
+    try {
+      p = await page(state.prefix, state.cursor);
+    } catch (e) {
+      if (!state.cursor) throw e;
+      // a stored cursor can expire: start this prefix again (visiting a record twice is harmless)
+      console.warn('[privacy] migration cursor no longer valid, restarting', state.prefix);
+      state.cursor = null;
+      continue;
+    }
     for (const { key, value } of p.results) await visit(key, value);
     await flush();
-    if (p.cursor) state.cursor = p.cursor; else { state.i++; state.cursor = null; }
+    if (p.cursor) state.cursor = p.cursor;
+    else { const next = MIGRATION_SOURCES.indexOf(state.prefix) + 1; state.prefix = next < MIGRATION_SOURCES.length ? MIGRATION_SOURCES[next] : null; state.cursor = null; }
     await kvs.set(MIGRATION, state);
     if (Date.now() > deadline) return false;
   }

@@ -99,6 +99,7 @@ async function open(send, { hash = '', tab = 'overview', wf = 'all', width = 184
   await evaluate(send, `localStorage.clear();
     localStorage.setItem('superport.wfa.lang', 'en');
     localStorage.setItem('superport.wfa.tourDone', '1');
+    localStorage.setItem('superport.wfa.startHintHidden', '1');
     localStorage.setItem(${JSON.stringify(place)}, JSON.stringify({ tab: ${JSON.stringify(tab)}, wfSel: ${JSON.stringify(wf)} }));
     true`);
   await send('Page.navigate', { url: `${BASE}#${hash}` });

@@ -340,6 +340,18 @@ export async function workflowIssueTypeIds(workflowId, projectId) {
 }
 
 /**
+ * Jira's bulk workflow request (POST /workflows) returns no change dates; only the workflow search does. Adds
+ * created/updated to workflows that lack them, matched by ID (one search by name per workflow). Never throws.
+ */
+async function addWorkflowDates(workflows, warnings) {
+  await pool(workflows.filter((wf) => !wf.updated && wf.name), 4, async (wf) => {
+    const res = await safe(warnings, `dates of ${wf.name}`, () => jira(route`/rest/api/3/workflows/search?queryString=${wf.name}&maxResults=50`), null);
+    const hit = (res?.values || []).find((v) => String(v.id) === String(wf.id));
+    if (hit) { wf.created = hit.created || wf.created; wf.updated = hit.updated || wf.updated; }
+  });
+}
+
+/**
  * Load every workflow used by a project together with all reference data.
  */
 export async function getProjectBundle(projectIdOrKey) {
@@ -361,6 +373,7 @@ export async function getProjectBundle(projectIdOrKey) {
   });
 
   const workflows = [...workflowsById.values()];
+  await addWorkflowDates(workflows, warnings);
   const ref = await getReferenceData(collectRawRefs(workflows), warnings, { firstWorkflowId: workflows[0]?.id });
 
   return {
@@ -391,6 +404,12 @@ export async function searchWorkflowsPage(startAt = 0, maxResults = 20) {
   const ids = (page.values || []).map((w) => String(w.id));
   let full = { workflows: [], statuses: [] };
   if (ids.length) full = await jira(route`/rest/api/3/workflows`, { method: 'POST', body: { workflowIds: ids } });
+  // the search page has the change dates the bulk request lacks
+  const dates = new Map((page.values || []).map((w) => [String(w.id), w]));
+  for (const wf of full.workflows || []) {
+    const d = dates.get(String(wf.id));
+    if (d) { wf.created = wf.created || d.created || null; wf.updated = wf.updated || d.updated || null; }
+  }
   return {
     total: page.total ?? ids.length,
     isLast: page.isLast !== false,

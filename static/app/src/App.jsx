@@ -428,6 +428,7 @@ export default function App() {
       setTab('diagram');
     },
     openRemediation: (findings) => setRemFindings(findings),
+    startTour: () => setTourOpen(true),
     // Existing issues whose resolution does not match their status (Health tab, repair panel open)
     openResolutions: () => { setResOpen(true); setHcFocus(null); setTab('health'); },
     resAudit,

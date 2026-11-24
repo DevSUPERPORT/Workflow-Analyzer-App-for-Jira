@@ -180,7 +180,6 @@ export const en2 = {
   'dg.mermaidHint': 'Mermaid state diagram (also copied to clipboard) – paste into Confluence, GitHub or Markdown.',
 
   // Governance & plan
-  'gov.title': 'Governance score',
   'gov.structure': 'Structure',
   'gov.structure.hint': 'reachability, dead ends',
   'gov.data': 'Data quality',
@@ -268,7 +267,7 @@ export const en2 = {
   'tour.welcome.title': 'Welcome to the Workflow Analyzer',
   'tour.welcome.text': 'Your workflows are read live from Jira – no XML export, no field mapping. Everything below is calculated automatically and updates with one click.',
   'tour.overview.title': 'Overview & action plan',
-  'tour.overview.text': 'Health and governance scores, the apps your workflows depend on and a prioritised action plan you can turn into Jira tasks.',
+  'tour.overview.text': 'The health score, your workflows, rules, dependencies and apps at a glance, and a prioritised action plan you can turn into Jira tasks.',
   'tour.transitions.title': 'Transitions – like the old parser, but live',
   'tour.transitions.text': 'Every transition with conditions, validators and post functions in plain language. Filter by app or element, search, add team notes, export a selection.',
   'tour.impact.title': 'Dependencies',
@@ -648,7 +647,6 @@ export const de2 = {
   'dg.export': 'Diagramm herunterladen',
   'dg.mermaidHint': 'Mermaid-Zustandsdiagramm (auch in die Zwischenablage kopiert) – in Confluence, GitHub oder Markdown einfügen.',
 
-  'gov.title': 'Governance-Score',
   'gov.structure': 'Struktur',
   'gov.structure.hint': 'Erreichbarkeit, Sackgassen',
   'gov.data': 'Datenqualität',
@@ -732,7 +730,7 @@ export const de2 = {
   'tour.welcome.title': 'Willkommen im Workflow-Analyzer',
   'tour.welcome.text': 'Ihre Workflows werden live aus Jira gelesen – kein XML-Export, kein Feld-Mapping. Alles hier wird automatisch berechnet und mit einem Klick aktualisiert.',
   'tour.overview.title': 'Übersicht & Maßnahmenplan',
-  'tour.overview.text': 'Health- und Governance-Score, die Apps, von denen Ihre Workflows abhängen, und ein priorisierter Maßnahmenplan, den Sie in Jira-Aufgaben umwandeln können.',
+  'tour.overview.text': 'Health-Score, Workflows, Regeln, Abhängigkeiten und Apps auf einen Blick und ein priorisierter Maßnahmenplan, den Sie in Jira-Aufgaben umwandeln können.',
   'tour.transitions.title': 'Transitionen – wie der alte Parser, nur live',
   'tour.transitions.text': 'Jede Transition mit Bedingungen, Validierungen und Post-Functions in Klartext. Nach App oder Element filtern, suchen, Team-Notizen ergänzen, Auswahl exportieren.',
   'tour.impact.title': 'Abhängigkeiten',

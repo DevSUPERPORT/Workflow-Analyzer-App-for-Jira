@@ -61,7 +61,8 @@ export const isAiError = (e) => e instanceof AiError;
 
 /**
  * This site's caps from AI_BUDGET: { stop, callsPerMonth, tokensPerMonth, eurPerMonth, eurPerUsd }. The site host is
- * only looked up when AI_BUDGET has per-site values; if that lookup fails the app-wide values apply.
+ * only looked up when AI_BUDGET has per-site values; if that lookup fails the strictest values of any site apply
+ * (strictestBudget), so a site SUPERPORT limited or switched off never gets more.
  */
 export async function aiCaps(budget = aiBudget()) {
   if (!hasSiteCaps(budget)) return siteBudget(budget, null);

@@ -10,11 +10,14 @@
  * @updated     2026-11-23
  */
 
+import { useState } from 'react';
 import { useT } from '../lib/i18n.jsx';
 import { useApp, Kpi, ScoreRing, scoreLabelKey, VendorBadge, EmptyState } from './common.jsx';
 import Icon from './Icon.jsx';
 import { REF_TYPES } from '../../../../src/shared/rules.js';
 import { governance, actionPlan } from '../../../../src/shared/insights.js';
+
+const START_HINT = 'superport.wfa.startHintHidden';
 
 const tone = (score) => (score >= 80 ? 'var(--ok)' : score >= 55 ? 'var(--accent)' : 'var(--high)');
 
@@ -32,9 +35,21 @@ export default function Overview({ model, workflows }) {
   const deps = depTypes.reduce((n, rt) => n + s.refs[rt], 0);
   const depsMissing = depTypes.reduce((n, rt) => n + Object.values(model.index[rt] || {}).filter((e) => e.resolved === false || e.inactive).length, 0);
   const depsSub = [...depTypes.map((rt) => `${s.refs[rt]} ${t(`refs.${rt}`)}`), ...(depsMissing ? [`${depsMissing} ${t('im.unresolved')}`] : [])].join(' · ');
+  // Where to start: shown until the person dismisses it (per browser)
+  const [startHint, setStartHint] = useState(() => { try { return localStorage.getItem(START_HINT) !== '1'; } catch { return false; } });
+  const hideStartHint = () => { try { localStorage.setItem(START_HINT, '1'); } catch { /* ignore */ } setStartHint(false); };
 
   return (
     <div>
+      {startHint && (
+        <div className="alert info row" role="note" style={{ gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+          <Icon name="book" size={18} />
+          <span style={{ flex: 1, minWidth: 220 }}><strong>{t('ov.start.title')}</strong> {t('ov.start.text')}</span>
+          <button type="button" className="btn small primary" onClick={() => actions.startTour()}>{t('ov.start.tour')}</button>
+          <button type="button" className="btn small" onClick={() => actions.setTab('guide')}>{t('ov.start.guide')}</button>
+          <button type="button" className="btn small ghost" onClick={hideStartHint} aria-label={t('ov.start.hide')} title={t('ov.start.hide')}><Icon name="x" size={14} /></button>
+        </div>
+      )}
       <section className="grid kpis" aria-label={t('ov.health')}>
         <button type="button" className="tile ink" onClick={() => actions.goHealth('all')} style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
           <ScoreRing score={s.healthScore} size={72} inverted />

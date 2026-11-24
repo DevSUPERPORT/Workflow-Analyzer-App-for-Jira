@@ -94,8 +94,8 @@ export default function Impact({ model, refType, setRefType, refId, setRefId, re
               <button key={e.id} type="button" className="impact-item" aria-selected={sel?.id === e.id} onClick={() => setRefId(e.id)}>
                 {type === 'app' && vendorOf(e.id) ? <VendorBadge vendor={vendorOf(e.id)} /> : null}
                 <span className="name" title={`${e.name} (${e.id})`}>{type === 'app' ? '' : e.name}</span>
-                {e.resolved === false && <span className="chip bad">{t('im.unresolved')}</span>}
-                {e.inactive && <span className="chip warn">{t('im.inactive')}</span>}
+                {e.resolved === false && <span className="chip bad" style={{ flex: "none" }}>{t("im.unresolved")}</span>}
+                {e.inactive && <span className="chip warn" style={{ flex: "none" }}>{t("im.inactive")}</span>}
                 <span className="n">{e.transitionCount}</span>
               </button>
             ))}

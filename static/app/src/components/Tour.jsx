@@ -16,7 +16,8 @@ import { useAiOn } from './common.jsx';
 import Icon from './Icon.jsx';
 import appIcon from '../assets/app-icon.png';
 
-const STEPS = ['welcome', 'overview', 'transitions', 'impact', 'access', 'flow', 'health', 'assistant', 'export'];
+// In tab order (App.jsx tabGroups)
+const STEPS = ['welcome', 'overview', 'transitions', 'access', 'flow', 'impact', 'assistant', 'health', 'export'];
 const KEY = 'superport.wfa.tourDone';
 
 export function tourDone() {

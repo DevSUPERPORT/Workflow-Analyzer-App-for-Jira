@@ -193,14 +193,20 @@ export function layoutWorkflow(wf, opts = {}) {
   }
 
   // Labels of edges that share a corridor (e.g. several global transitions) can land on each
-  // other – nudge each one vertically to the nearest free slot
+  // other or on a status box – move each one to the nearest free spot (vertically first, then also sideways)
   const placed = [];
-  const hits = (l, y) => placed.some((p) => Math.abs(p.x - l.x) < (p.w + l.w) / 2 + 4 && Math.abs(p.y - y) < 22);
+  const boxes = [...all.values()].map((n) => ({ x0: n.x - 4, y0: n.y - 4, x1: n.x + n.w + 4, y1: n.y + n.h + 4 }));
+  const onLabel = (l, x, y) => placed.some((p) => Math.abs(p.x - x) < (p.w + l.w) / 2 + 4 && Math.abs(p.y - y) < 22);
+  const onBox = (l, x, y) => boxes.some((b) => x + l.w / 2 > b.x0 && x - l.w / 2 < b.x1 && y + 10 > b.y0 && y - 10 < b.y1);
+  const free = (l, x, y) => !onLabel(l, x, y) && !onBox(l, x, y);
   for (const e of edges) {
     const l = e.label;
-    let y = l.y;
-    for (let k = 1; hits(l, y) && k <= 12; k++) y = l.y + (k % 2 ? -1 : 1) * Math.ceil(k / 2) * 22;
-    l.y = y;
+    let best = null;
+    for (let k = 0; k <= 16 && !best; k++) {
+      const dy = (k % 2 ? -1 : 1) * Math.ceil(k / 2) * 22;
+      for (const dx of [0, -(l.w / 2 + 16), l.w / 2 + 16]) if (!best && free(l, l.x + dx, l.y + dy)) best = { x: l.x + dx, y: l.y + dy };
+    }
+    if (best) { l.x = best.x; l.y = best.y; }
     placed.push(l);
   }
 

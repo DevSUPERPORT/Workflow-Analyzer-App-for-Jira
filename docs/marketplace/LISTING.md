@@ -1,7 +1,7 @@
 # Marketplace listing: Workflow Analyzer for Jira
 
 Everything to paste into the Atlassian partner portal. Images are in this folder (see [README](README.md)).
-Search for **⟦CONFIRM⟧** for what still needs a SUPERPORT decision.
+Open decision: the prices (section Pricing).
 
 ## Basics
 
@@ -18,8 +18,8 @@ Search for **⟦CONFIRM⟧** for what still needs a SUPERPORT decision.
 | Vendor | SUPERPORT P.C. (IKE), Sorou 22, 151 25 Marousi (Athens), Greece · https://www.superport.digital |
 | Support | mail@superport.digital · https://www.superport.digital/en/contact · +30 698 336 9006 · working days 9:00–18:00 Athens time (DE/EN/GR), first response within 1 business day |
 | Status page | https://superapps.statuspage.io/ |
-| Documentation URL | ⟦CONFIRM⟧ The guide is `docs/USER-GUIDE.md`, but the GitHub repository is **private**. Either make the repo public (then `https://github.com/DevSUPERPORT/Workflow-Analyzer-App-for-Jira/blob/main/docs/USER-GUIDE.md`) or publish the guide on the website. |
-| Privacy policy URL | https://www.superport.digital/en/apps/eula ⟦CONFIRM⟧ check that the page names Workflow Analyzer |
+| Documentation URL | https://github.com/DevSUPERPORT/Workflow-Analyzer-App-for-Jira/blob/main/docs/USER-GUIDE.md (repository public since 2026-11-24) |
+| Privacy policy URL | https://www.superport.digital/en/apps/eula (§1.1 covers all SUPERPORT apps on the Marketplace; its data-protection part matches this app: AI off by default, only Rovo and Forge LLM) |
 | EULA URL | https://www.superport.digital/en/apps/eula |
 
 ## Tagline (max 80 characters)
@@ -96,24 +96,29 @@ explains them in plain language, finds what is broken and helps you fix it safel
 
 **Runs on Atlassian.** The app stores nothing outside Atlassian's cloud and sends no data anywhere else.
 
-## Pricing (proposal) ⟦CONFIRM⟧
+## Pricing (proposal, to confirm)
 
-Set in the partner portal under *Pricing*. Atlassian bills annual subscriptions at 10× the monthly price.
+Set in the partner portal under *Pricing* (single and multi-instance the same). Atlassian bills annual subscriptions at 10× the
+monthly price. In line with the other SUPERPORT apps (11–100 users: Screen $0.40, Custom Field $0.60, Group $0.80), one step above
+Group because the app is broader and includes AI that SUPERPORT pays for.
 
-**Free for up to 10 users.** Above that, per user per month:
+| Users on the site | Price per user per month | Monthly total at the top of the tier |
+|---|---|---|
+| Up to 10 | **Free** | $0 |
+| 11–100 | $1.00 | $100 |
+| 101–250 | $0.70 | $205 |
+| 251–1,000 | $0.40 | $505 |
+| 1,001–2,500 | $0.15 | $730 |
+| 2,501–5,000 | $0.10 | $980 |
+| 5,001–7,500 | $0.06 | $1,130 |
+| 7,501–10,000 | $0.05 | $1,255 |
+| 10,001–15,000 | $0.04 | $1,455 |
+| 15,001–25,000 | $0.03 | $1,755 |
+| 25,001–35,000 | $0.02 | $1,955 |
+| 35,001 and more | $0.01 | |
 
-| Users on the site | Price per user per month |
-|---|---|
-| 1–10 | **Free** |
-| 11–100 | $1.50 |
-| 101–250 | $1.20 |
-| 251–1,000 | $0.80 |
-| 1,001–5,000 | $0.40 |
-| 5,001+ | $0.20 |
-
-Why higher than Screen Self-Service ($0.40 for 11–100): it's a broader admin tool, and SUPERPORT pays for the AI (up to 20 € per site
-and month). Note that free sites (up to 10 users) can also use the full 20 € AI budget each month; App Status can lower it per site
-(`sites`) if that becomes a problem. Free trial: Atlassian's standard 30 days.
+Note: every site, including free ones, can use up to 20 € of AI per month, which SUPERPORT pays (typical use is a few cents per
+AI plan). App Status can lower the budget for individual sites (`sites`). Free trial: Atlassian's standard 30 days.
 
 ## Why the app needs each permission (scope justification)
 
@@ -134,7 +139,7 @@ admin turns them on.
 2. Partner portal → *Create new app* → **Forge app** → production environment → paid via Atlassian.
 3. Paste the texts above; upload logo, banner, hero, highlights and gallery screenshots.
 4. Enter the pricing table; keep the 30-day trial.
-5. Enter documentation, EULA and privacy URLs (see ⟦CONFIRM⟧ above).
+5. Enter documentation, EULA and privacy URLs from the table above.
 6. Fill in the *Privacy & Security* tab from [DATA_SECURITY_PRIVACY.md](DATA_SECURITY_PRIVACY.md) (the user ticks the attestations).
 7. Security questionnaire: the app collects no credentials or API tokens (Q11: **No**). It stores account IDs only and uses the
    Personal Data Reporting API (`src/lib/privacy.js`).
