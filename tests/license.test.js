@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import { state, app, scenario, ctxProject, ctxSite, call, ok } from './support/harness.js';
 import { isLicenseInactive } from '../src/lib/license.js';
 
-const INACTIVE_EN = 'The Workflow Analyzer for Jira licence for this site is not active. A Jira administrator can start a free trial or subscribe under Apps › Manage your apps. Your saved data is kept.';
+const INACTIVE_EN = 'The Workflow Analyzer & Autopilot for Jira licence for this site is not active. A Jira administrator can start a free trial or subscribe under Apps › Manage your apps. Your saved data is kept.';
 const unlicensed = (ctx) => ({ ...ctx, license: { active: false, isActive: false } });
 const licensed = (ctx) => ({ ...ctx, license: { active: true, isActive: true } });
 
@@ -47,7 +47,7 @@ test('unlicensed site: every resolver is refused with LICENSE_INACTIVE before Ji
   assert.equal(JSON.stringify([...state.kvs.entries()]), before, 'nothing stored');
   assert.equal(state.llm.length, llmBefore, 'no AI call');
   const de = await call('bootstrap', { lang: 'de' }, unlicensed(ctxProject()));
-  assert.match(de.message, /Lizenz von Workflow Analyzer for Jira ist für diese Site nicht aktiv/);
+  assert.match(de.message, /Lizenz von Workflow Analyzer & Autopilot for Jira ist für diese Site nicht aktiv/);
 });
 
 test('availability reports the licence so the UI shows the notice first', async () => {

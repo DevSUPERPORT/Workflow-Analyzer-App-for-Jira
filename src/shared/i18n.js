@@ -18,7 +18,7 @@ export const LANGS = ['en', 'de'];
 
 const en = {
   // App chrome
-  'app.title': 'Workflow Analyzer for Jira',
+  'app.title': 'Workflow Analyzer & Autopilot for Jira',
   'app.tag': 'Workflow Analyzer',
   'app.subtitleProject': 'Project {key} · {name}',
   'app.subtitleSite': 'Site-wide analysis · all workflows',
@@ -37,22 +37,22 @@ const en = {
   'app.searchNoResults': 'No matches.',
   'app.askRovo': 'Ask Rovo',
   'app.rovoUnavailable': 'Rovo is not enabled on this site. The built-in assistant below works without Rovo.',
-  'app.poweredBy': 'Superport · Workflow Analyzer for Jira',
+  'app.poweredBy': 'Superport · Workflow Analyzer & Autopilot for Jira',
   'app.forbidden': 'You need project administrator permissions to use the Workflow Analyzer.',
   'app.forbiddenSite': 'You need Jira administrator permissions to use the site-wide analysis.',
   'app.warning': 'Note',
 
   // Kill switch (SUPERPORT maintenance, decided on the server)
   'maint.badge': 'Under maintenance',
-  'maint.title': 'Workflow Analyzer for Jira is temporarily unavailable',
-  'maint.body': 'We\'ve paused Workflow Analyzer for Jira for maintenance to keep your data safe. Nothing you\'ve saved is lost, and we\'ll be back as soon as possible. You can follow the progress on our status page.',
+  'maint.title': 'Workflow Analyzer & Autopilot for Jira is temporarily unavailable',
+  'maint.body': 'We\'ve paused Workflow Analyzer & Autopilot for Jira for maintenance to keep your data safe. Nothing you\'ve saved is lost, and we\'ll be back as soon as possible. You can follow the progress on our status page.',
   'maint.status': 'View status page',
   'maint.statusShort': 'Status page',
   'maint.readonly': 'Changes are paused for maintenance to keep your data safe. You can still view everything; editing will be back as soon as possible.',
   'maint.readonlyToast': 'Changes are paused for maintenance to keep your data safe. Please try again later.',
   'lic.badge': 'Licence not active',
-  'lic.title': 'Workflow Analyzer for Jira needs an active licence',
-  'lic.inactive': 'The Workflow Analyzer for Jira licence for this site is not active. A Jira administrator can start a free trial or subscribe under Apps › Manage your apps. Your saved data is kept.',
+  'lic.title': 'Workflow Analyzer & Autopilot for Jira needs an active licence',
+  'lic.inactive': 'The Workflow Analyzer & Autopilot for Jira licence for this site is not active. A Jira administrator can start a free trial or subscribe under Apps › Manage your apps. Your saved data is kept.',
   'lic.manage': 'Manage apps',
 
   // Tabs
@@ -504,7 +504,7 @@ const en = {
 };
 
 const de = {
-  'app.title': 'Workflow Analyzer for Jira',
+  'app.title': 'Workflow Analyzer & Autopilot for Jira',
   'app.tag': 'Workflow-Analyzer',
   'app.subtitleProject': 'Projekt {key} · {name}',
   'app.subtitleSite': 'Instanzweite Analyse · alle Workflows',
@@ -523,22 +523,22 @@ const de = {
   'app.searchNoResults': 'Keine Treffer.',
   'app.askRovo': 'Rovo fragen',
   'app.rovoUnavailable': 'Rovo ist auf dieser Instanz nicht aktiviert. Der integrierte Assistent unten funktioniert auch ohne Rovo.',
-  'app.poweredBy': 'Superport · Workflow Analyzer for Jira',
+  'app.poweredBy': 'Superport · Workflow Analyzer & Autopilot for Jira',
   'app.forbidden': 'Für den Workflow-Analyzer benötigen Sie Projektadministrator-Rechte.',
   'app.forbiddenSite': 'Für die instanzweite Analyse benötigen Sie Jira-Administrator-Rechte.',
   'app.warning': 'Hinweis',
 
   // Kill switch (SUPERPORT-Wartung, auf dem Server entschieden)
   'maint.badge': 'Wartungsarbeiten',
-  'maint.title': 'Workflow Analyzer for Jira ist vorübergehend nicht verfügbar',
-  'maint.body': 'Wir haben Workflow Analyzer for Jira zu Ihrem Schutz für Wartungsarbeiten pausiert. Ihre gespeicherten Daten bleiben erhalten, und wir sind so schnell wie möglich wieder da. Den aktuellen Stand finden Sie auf unserer Statusseite.',
+  'maint.title': 'Workflow Analyzer & Autopilot for Jira ist vorübergehend nicht verfügbar',
+  'maint.body': 'Wir haben Workflow Analyzer & Autopilot for Jira zu Ihrem Schutz für Wartungsarbeiten pausiert. Ihre gespeicherten Daten bleiben erhalten, und wir sind so schnell wie möglich wieder da. Den aktuellen Stand finden Sie auf unserer Statusseite.',
   'maint.status': 'Statusseite öffnen',
   'maint.statusShort': 'Statusseite',
   'maint.readonly': 'Änderungen sind zu Ihrem Schutz wegen Wartungsarbeiten pausiert. Sie können weiterhin alles ansehen; Bearbeiten ist so schnell wie möglich wieder möglich.',
   'maint.readonlyToast': 'Änderungen sind zu Ihrem Schutz wegen Wartungsarbeiten pausiert. Bitte versuchen Sie es später noch einmal.',
   'lic.badge': 'Lizenz nicht aktiv',
-  'lic.title': 'Workflow Analyzer for Jira benötigt eine aktive Lizenz',
-  'lic.inactive': 'Die Lizenz von Workflow Analyzer for Jira ist für diese Site nicht aktiv. Ein Jira-Administrator kann unter Apps › Apps verwalten eine kostenlose Testversion starten oder ein Abonnement abschließen. Ihre gespeicherten Daten bleiben erhalten.',
+  'lic.title': 'Workflow Analyzer & Autopilot for Jira benötigt eine aktive Lizenz',
+  'lic.inactive': 'Die Lizenz von Workflow Analyzer & Autopilot for Jira ist für diese Site nicht aktiv. Ein Jira-Administrator kann unter Apps › Apps verwalten eine kostenlose Testversion starten oder ein Abonnement abschließen. Ihre gespeicherten Daten bleiben erhalten.',
   'lic.manage': 'Apps verwalten',
 
   'tab.overview': 'Übersicht',

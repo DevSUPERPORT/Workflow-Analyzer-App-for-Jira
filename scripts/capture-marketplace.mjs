@@ -155,7 +155,7 @@ const ART = {
       .frame { left: 90px; top: 178px; width: 780px; height: 380px; }
       .frame { background: #fff url('${SHOT('autofix')}') no-repeat -141px 0 / 1067px auto; }
     </style></head><body><div class="dots"></div>
-      <div class="brand"><img src="${LOGO}"><span>WORKFLOW ANALYZER FOR JIRA</span></div>
+      <div class="brand"><img src="${LOGO}"><span>WORKFLOW ANALYZER &amp; AUTOPILOT FOR JIRA</span></div>
       <h1>See every workflow. Change it safely.</h1>
       <div class="frame"></div>
     </body></html>`,
@@ -164,13 +164,13 @@ const ART = {
     file: 'banner-1120x548.png', width: 1120, height: 548,
     html: () => `<!doctype html><html><head><meta charset="utf-8"><style>${BASE_CSS}
       .logo { position: absolute; left: 64px; top: 116px; width: 88px; height: 88px; border-radius: 18px; }
-      h1 { position: absolute; left: 64px; top: 228px; width: 420px; font-size: 44px; line-height: 1.12; font-weight: 700; letter-spacing: -.015em; }
-      p { position: absolute; left: 64px; top: 344px; width: 430px; font-size: 20px; line-height: 1.5; color: #57524b; }
+      h1 { position: absolute; left: 64px; top: 224px; width: 440px; font-size: 38px; line-height: 1.12; font-weight: 700; letter-spacing: -.015em; }
+      p { position: absolute; left: 64px; top: 372px; width: 430px; font-size: 20px; line-height: 1.5; color: #57524b; }
       .frame { left: 540px; top: 62px; width: 640px; height: 374px; border-radius: 14px 0 0 14px; }
       .frame { background: #fff url('${SHOT('overview')}') no-repeat -146px 0 / 1104px auto; }
     </style></head><body><div class="dots"></div>
       <img class="logo" src="${LOGO}">
-      <h1>Workflow Analyzer for Jira</h1>
+      <h1>Workflow Analyzer & Autopilot for Jira</h1>
       <p>Understand, check and safely change your Jira workflows, with a health check, impact analysis and one-click rollback.</p>
       <div class="frame"></div>
     </body></html>`,
