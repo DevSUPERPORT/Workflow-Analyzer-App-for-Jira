@@ -644,7 +644,7 @@ export default function App() {
                   {tab === 'diagram' && (diagramWf ? (
                     <>
                       {workflows.length > 1 && <div className="small muted" style={{ marginBottom: 10 }}>{t('dg.selectWorkflow')} · <strong>{diagramWf.name}</strong></div>}
-                      <Diagram wf={diagramWf} model={model} setOverlayMode={setOverlayMode} overlay={{ mode: overlayMode, load, sim: personaSim, impact: impactOverlay?.keys, impactLabel: impactOverlay?.label }} />
+                      <Diagram wf={diagramWf} model={model} setOverlayMode={setOverlayMode} toast={toast} overlay={{ mode: overlayMode, load, sim: personaSim, impact: impactOverlay?.keys, impactLabel: impactOverlay?.label }} />
                     </>
                   ) : <div className="empty">{t('dg.selectWorkflow')}</div>)}
                   {tab === 'transitions' && <Transitions model={model} workflows={workflows} search={search} setSearch={setSearch} />}

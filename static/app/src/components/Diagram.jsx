@@ -23,11 +23,11 @@ const LIVE_CAT = {
   DONE: { fill: 'var(--cat-done)', stroke: 'var(--cat-done-ink)', ink: 'var(--cat-done-ink)' },
 };
 import { toMermaid } from '../../../../src/shared/insights.js';
-import { svgToPng } from '../lib/exportPdf.js';
+import { svgToPng, dataUrlToBlob } from '../lib/exportPdf.js';
 import { downloadText, downloadBlob, exportFilename } from '../lib/download.js';
 import Icon from './Icon.jsx';
 
-export default function Diagram({ wf, model, overlay = {}, setOverlayMode = () => {} }) {
+export default function Diagram({ wf, model, overlay = {}, setOverlayMode = () => {}, toast }) {
   const t = useT();
   const { actions } = useApp();
   const findingKeys = useMemo(() => new Set(model.findings.filter((f) => f.tKey && f.severity !== 'info').map((f) => f.tKey)), [model]);
@@ -86,9 +86,16 @@ export default function Diagram({ wf, model, overlay = {}, setOverlayMode = () =
   };
   const fname = (ext) => exportFilename({ label: wf.name, fallback: wf.name, ext });
   const exportSvg = () => downloadText(diagramSvg(layoutWorkflow(wf, { mode: layout.mode, findingKeys }), { anyLabel: t('dg.any') }), fname('svg'), 'image/svg+xml');
+  // No fetch() of the data: URL here – Forge's CSP blocks it and the button silently did nothing
   const exportPng = async () => {
-    const img = await svgToPng(diagramSvg(layoutWorkflow(wf, { mode: layout.mode, findingKeys }), { anyLabel: t('dg.any') }));
-    if (img) downloadBlob(await (await fetch(img.data)).blob(), fname('png'));
+    try {
+      const img = await svgToPng(diagramSvg(layoutWorkflow(wf, { mode: layout.mode, findingKeys }), { anyLabel: t('dg.any') }));
+      if (!img) throw new Error('PNG rendering failed');
+      downloadBlob(img.blob || dataUrlToBlob(img.data), fname('png'));
+    } catch (e) {
+      console.error('[diagram] PNG export failed', e);
+      toast?.(t('dg.pngFailed'));
+    }
   };
   const exportMermaid = () => {
     const text = toMermaid(wf);

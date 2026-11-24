@@ -38,6 +38,16 @@ export function pdfText(s) {
     .replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF€]/g, '?');
 }
 
+/** data: URL → Blob without fetch() (blocked by Forge's content security policy). */
+export function dataUrlToBlob(dataUrl) {
+  const [head, body = ''] = String(dataUrl).split(',');
+  const mime = (/^data:([^;,]+)/.exec(head) || [])[1] || 'application/octet-stream';
+  const bin = /;base64/.test(head) ? atob(body) : decodeURIComponent(body);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
 export function svgToPng(svg, maxW = 3200) {
   return new Promise((resolve) => {
     const m = /viewBox="([-\d.]+) ([-\d.]+) ([\d.]+) ([\d.]+)"/.exec(svg);
@@ -55,7 +65,10 @@ export function svgToPng(svg, maxW = 3200) {
       ctx.fillRect(0, 0, c.width, c.height);
       ctx.drawImage(img, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url);
-      resolve({ data: c.toDataURL('image/png'), w, h });
+      const data = c.toDataURL('image/png');
+      // The PNG as a Blob straight from the canvas: Forge's CSP blocks fetch() of data: URLs (connect-src has no data:)
+      if (c.toBlob) c.toBlob((blob) => resolve({ data, blob: blob || dataUrlToBlob(data), w, h }), 'image/png');
+      else resolve({ data, blob: dataUrlToBlob(data), w, h });
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
