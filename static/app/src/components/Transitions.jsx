@@ -8,7 +8,7 @@
  * @author      George Papasotiriou
  * @company     SUPERPORT
  * @created     2026-10-24
- * @updated     2026-11-16
+ * @updated     2026-11-25
  */
 
 import { useMemo, useState, useEffect, useRef } from 'react';
@@ -18,6 +18,7 @@ import { findingText } from '../../../../src/shared/i18n.js';
 import { allRules, flattenConditions } from '../../../../src/shared/engine.js';
 import { describeRule, describeTransition } from '../../../../src/shared/explain.js';
 import Icon from './Icon.jsx';
+import { countTransitions } from '../lib/transitionCount.js';
 
 const COLS = ['id', 'source', 'transition', 'target', 'screen', 'properties', 'conditions', 'validators', 'postfunctions', 'note'];
 const DEFAULT_HIDDEN = ['properties'];
@@ -96,8 +97,9 @@ export default function Transitions({ model, workflows, search, setSearch }) {
   };
 
   const visibleSections = sections.map((s) => ({ ...s, visRows: s.rows.filter((r) => rowVisible(r.tr)) })).filter((s) => s.visRows.length);
-  const totalRows = sections.reduce((a, s) => a + s.rows.length, 0);
-  const shownRows = visibleSections.reduce((a, s) => a + s.visRows.length, 0);
+  // count transitions, not rows: a transition with several source statuses has one row per source
+  const totalRows = countTransitions(sections);
+  const shownRows = countTransitions(sections, rowVisible);
   const filterActive = !allVendors || !allKinds || q.length >= 2;
 
   // When searching, expand everything with hits
