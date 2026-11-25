@@ -63,7 +63,7 @@ async function deletePlanData(id) {
 async function savePlan(plan) {
   await kvs.set(planKey(plan.id), plan);
   const idx = (await kvs.get(idxKey(plan.projectId))) || [];
-  const entry = { id: plan.id, status: plan.status, createdAt: plan.createdAt, createdBy: plan.createdBy || null, workflowName: plan.workflowName, source: plan.source, title: plan.title, opCount: plan.ops.length, healthBefore: plan.healthBefore, healthAfter: plan.healthAfter };
+  const entry = { id: plan.id, status: plan.status, createdAt: plan.createdAt, createdBy: plan.createdBy || null, workflowName: plan.workflowName, source: plan.source, title: plan.title, titleI18n: plan.titleI18n || undefined, opCount: plan.ops.length, healthBefore: plan.healthBefore, healthAfter: plan.healthAfter };
   const next = [entry, ...idx.filter((e) => e.id !== plan.id)];
   const removed = [];
   const max = plan.projectId === SITE.id ? MAX_SITE_PLANS : MAX_PLANS;
@@ -157,7 +157,7 @@ export function groupsInOps(ops) {
   return { ids: ids.slice(0, 200), names: names.slice(0, 200) };
 }
 
-export async function createPlan({ project, workflowId, workflowName, ops, instructions, explanation, explanationLang, source, user, bundle, lang, replaces }) {
+export async function createPlan({ project, workflowId, workflowName, ops, instructions, titleI18n, explanation, explanationLang, source, user, bundle, lang, replaces }) {
   bundle ||= await getProjectBundle(project.id);
   const raw = pickWorkflow(bundle, { workflowId, workflowName });
   if (!raw) throw new Error(`Workflow not found. Available: ${bundle.workflows.map((w) => w.name).join(', ')}`);
@@ -165,6 +165,13 @@ export async function createPlan({ project, workflowId, workflowName, ops, instr
   if (ops.length > MAX_OPS) throw new Error(`Too many operations (${ops.length}, max. ${MAX_OPS}) – split the change into several plans`);
   await ensureGroups(bundle.ref, groupsInOps(ops), bundle.warnings || []);
   const dr = dryRun(bundle, raw.id, ops, { lang });
+  // Result texts in both languages, so the plan reads right in whatever language the next person uses the app
+  const planLang = lang === 'de' ? 'de' : 'en';
+  const otherLang = planLang === 'de' ? 'en' : 'de';
+  const other = applyOperations(raw, ops, { statuses: bundle.statuses, ref: bundle.ref, resolutions: bundle.ref?.resolutions || [], lang: otherLang }).results || [];
+  const titles = titleI18n && typeof titleI18n === 'object'
+    ? Object.fromEntries(['de', 'en'].filter((k) => typeof titleI18n[k] === 'string' && titleI18n[k].trim()).map((k) => [k, titleI18n[k].slice(0, 140)]))
+    : {};
   const usage = await getWorkflowProjects([String(raw.id)], { visibleToUser: project.id !== SITE.id }).catch(() => ({ usage: {} }));
   // Ask Jira itself already while planning (read-only validation endpoint), so rules Jira would
   // reject – e.g. resolution rules in team-managed spaces – show up before anyone clicks Apply.
@@ -179,6 +186,7 @@ export async function createPlan({ project, workflowId, workflowName, ops, instr
     ownerProjectId: raw.scope?.project?.id ? String(raw.scope.project.id) : null,
     baseVersion: raw.version || null,
     title: String(instructions || explanation || '').slice(0, 140) || `${ops.length} operation(s)`,
+    titleI18n: Object.keys(titles).length ? titles : null,
     instructions: String(instructions || '').slice(0, 4000),
     explanation: String(explanation || '').slice(0, 4000),
     explanationLang: explanation && ['en', 'de'].includes(explanationLang) ? explanationLang : null,
@@ -186,7 +194,7 @@ export async function createPlan({ project, workflowId, workflowName, ops, instr
     lang: lang === 'de' ? 'de' : 'en',
     replaces: replaces || null,
     ops: cleanOps(ops),
-    results: dr.results.map((r) => ({ op: cleanOps([r.op])[0], ok: r.ok, noop: r.noop || undefined, message: r.message })),
+    results: dr.results.map((r, i) => ({ op: cleanOps([r.op])[0], ok: r.ok, noop: r.noop || undefined, message: r.message, messages: { [planLang]: r.message, [otherLang]: other[i]?.message ?? r.message } })),
     changes: dr.changes.slice(0, 200),
     healthBefore: dr.healthBefore,
     healthAfter: dr.healthAfter,
@@ -222,11 +230,13 @@ export async function createAutofixPlan({ project, workflowId, user, lang, finge
     throw e;
   }
   const n = new Set(ops.map((o) => o._f)).size;
+  const titles = { de: `Automatische Korrektur von ${n} Befund${n === 1 ? '' : 'en'} in „${wf.name}“`, en: `Auto-fix ${n} finding${n === 1 ? '' : 's'} in "${wf.name}"` };
   const plan = await createPlan({
     project,
     workflowId: wf.id,
     ops,
-    instructions: lang === 'de' ? `Automatische Korrektur von ${n} Befund${n === 1 ? '' : 'en'} in „${wf.name}“` : `Auto-fix ${n} finding${n === 1 ? '' : 's'} in "${wf.name}"`,
+    instructions: titles[lang === 'de' ? 'de' : 'en'],
+    titleI18n: titles,
     source: 'autofix',
     user,
     bundle,
@@ -413,6 +423,7 @@ export async function replanPlan({ project, planId, user, lang }) {
     workflowId: old.workflowId,
     ops: old.ops,
     instructions: old.instructions || old.title,
+    titleI18n: old.titleI18n || undefined,
     explanation: old.explanation,
     explanationLang: old.explanationLang,
     source: old.source,

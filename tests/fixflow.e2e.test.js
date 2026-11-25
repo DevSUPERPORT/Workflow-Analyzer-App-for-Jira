@@ -8,7 +8,7 @@
  * @author      George Papasotiriou
  * @company     SUPERPORT
  * @created     2026-10-24
- * @updated     2026-11-05
+ * @updated     2026-11-25
  */
 
 import { test } from 'node:test';
@@ -39,6 +39,13 @@ test('fix one finding: the plan contains only its fix, picks a fitting resolutio
   assert.ok(plan.fixed.some((f) => f.code === 'DONE_NO_RESOLUTION'));
   assert.match(plan.title, /^Auto-fix 1 finding in "Alpha Workflow"$/);
   assert.match(plan.results[0].message, /^Reject: Sets resolution "Won't Do"$/);
+  // both languages are stored, so a colleague with the German UI does not see the English plan texts
+  assert.equal(plan.titleI18n.de, 'Automatische Korrektur von 1 Befund in „Alpha Workflow“');
+  assert.equal(plan.titleI18n.en, plan.title);
+  assert.equal(plan.results[0].messages.en, plan.results[0].message);
+  assert.match(plan.results[0].messages.de, /^Reject: Setzt die Lösung „Won't Do“$/);
+  const listed = (await ok('listPlans', {})).find((p) => p.id === plan.id);
+  assert.equal(listed.titleI18n.de, plan.titleI18n.de, 'the plan list carries both titles');
 
   const applied = await ok('applyPlan', { id: plan.id });
   assert.equal(applied.status, 'applied');

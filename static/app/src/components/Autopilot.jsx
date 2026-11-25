@@ -21,6 +21,9 @@ import { call } from '../lib/api.js';
 import { openRovo } from './Assistant.jsx';
 import { findingText } from '../../../../src/shared/i18n.js';
 
+// Plans keep their title in both languages where the app wrote it (auto-fix); typed requests stay as written
+const planTitle = (p, lang) => p?.titleI18n?.[lang] || p?.title || '';
+
 // Status pills: quiet tint + ink text (reference), the meaning carried by the word and a dot
 export const STATUS_TINT = { planned: 'var(--tint-blue)', applying: 'var(--tint-orange)', applied: 'var(--tint-green)', failed: 'var(--high-bg)', invalid: 'var(--high-bg)', rolledback: 'var(--tint-amber)', discarded: 'var(--tint-stone)', nochange: 'var(--tint-stone)', pending: 'var(--tint-stone)' };
 export const STATUS_DOT = { planned: 'var(--low)', applying: 'var(--accent)', applied: 'var(--ok)', failed: 'var(--high)', invalid: 'var(--high)', rolledback: 'var(--medium)', discarded: 'var(--text-faint)', nochange: 'var(--text-faint)', pending: 'var(--text-faint)' };
@@ -237,7 +240,7 @@ export default function Autopilot({ model, workflows, allWorkflows = workflows, 
               <button key={p.id} type="button" role="option" className="impact-item" aria-selected={sel === p.id} onClick={() => setSel(p.id)} style={{ alignItems: 'flex-start' }}>
                 <Icon name={SOURCE_ICON[p.source] || 'list'} style={{ color: 'var(--text-muted)', marginTop: 3 }} label={t(`ap.source.${p.source}`)} />
                 <span className="name" style={{ whiteSpace: 'normal', flex: 1 }}>
-                  <span className="clamp-2" title={p.title} style={{ fontWeight: 500, lineHeight: 1.35 }}>{p.title}</span>
+                  <span className="clamp-2" title={planTitle(p, t.lang)} style={{ fontWeight: 500, lineHeight: 1.35 }}>{planTitle(p, t.lang)}</span>
                   <span className="small muted" style={{ display: 'block' }}>{p.opCount === 1 ? t('ap.opCount1') : t('ap.opCount', { n: p.opCount ?? '–' })} · {t.date(p.createdAt)}</span>
                 </span>
                 <span className="plan-status" style={{ flex: 'none' }}>{isExpired(p) ? <PlanStatus status="discarded" label={t('ap.status.expired')} /> : <PlanStatus status={p.status} label={t(`ap.status.${p.status}`)} />}</span>
@@ -257,7 +260,7 @@ export default function Autopilot({ model, workflows, allWorkflows = workflows, 
               <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'nowrap', gap: 16 }}>
                 <div style={{ minWidth: 0 }}>
                   <div className="small muted row" style={{ gap: 6 }}><Icon name={SOURCE_ICON[plan.source] || 'list'} size={14} />{t(`ap.source.${plan.source}`)} · {t.date(plan.createdAt)}{plan.createdByName ? ` · ${plan.createdByName}` : ''}{plan.source === 'copilot' && <AiLabel />}</div>
-                  <h2 id="ap-plan-title" className="clamp-3" title={plan.instructions || plan.title} style={{ margin: '4px 0 4px', fontSize: 20 }}>{plan.title}</h2>
+                  <h2 id="ap-plan-title" className="clamp-3" title={plan.titleI18n?.[t.lang] || plan.instructions || plan.title} style={{ margin: '4px 0 4px', fontSize: 20 }}>{planTitle(plan, t.lang)}</h2>
                   <div className="small">{t('app.workflow')}: <strong>{plan.workflowName}</strong></div>
                 </div>
                 <span className="plan-status" style={{ flex: 'none' }}>{expired ? <PlanStatus status="discarded" label={t('ap.status.expired')} /> : <PlanStatus status={plan.status} label={t(`ap.status.${plan.status}`)} />}</span>
@@ -325,7 +328,7 @@ export default function Autopilot({ model, workflows, allWorkflows = workflows, 
                   <li key={i} className={r.ok ? 'ok' : 'bad'}>
                     <Icon name={r.ok ? 'check' : 'x'} size={15} strokeWidth={2.25} label={r.ok ? 'OK' : t('ap.failed')} />
                     <code>{r.op.op}</code>
-                    <span className="small">{r.message}</span>
+                    <span className="small">{r.messages?.[t.lang] || r.message}</span>
                   </li>
                 ))}
               </ul>
